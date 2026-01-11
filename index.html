@@ -994,6 +994,27 @@
         </div>
     </div>
     
+    <!-- 카카오톡 공유 확인 모달 -->
+    <div class="modal" id="shareModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📤 이미지 공유</h3>
+                <button class="modal-close" onclick="closeShareModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 16px;">💬</div>
+                <p style="font-size: 1.1rem; font-weight: 600;">카카오톡으로 전송할까요?</p>
+                <p style="color: #888; font-size: 0.9rem; margin-top: 8px;">생성된 보고서 이미지를 공유합니다.</p>
+            </div>
+            <div class="modal-footer" style="justify-content: center; gap: 12px;">
+                <button class="btn btn-outline" onclick="closeShareModal()" style="min-width: 100px;">아니오</button>
+                <button class="btn btn-warning" id="confirmShareBtn" style="min-width: 100px; background: #FEE500; color: #000;">
+                    예
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- 토스트 메시지 -->
     <div class="toast" id="toast"></div>
 
@@ -1416,6 +1437,8 @@
         class ImageExporter {
             constructor(ui) {
                 this.ui = ui;
+                this.lastImageBlob = null;  // 마지막 생성된 이미지 저장
+                this.lastFileName = '';
             }
             
             // 이미지 파일 생성 및 다운로드
@@ -1428,16 +1451,75 @@
                         backgroundColor: '#ffffff'
                     });
                     
+                    // Blob으로 변환하여 저장
+                    const blob = await new Promise(resolve => {
+                        canvas.toBlob(resolve, 'image/jpeg', 0.95);
+                    });
+                    
+                    this.lastImageBlob = blob;
+                    this.lastFileName = `${fileName}.jpg`;
+                    
                     // 이미지 다운로드
                     const link = document.createElement('a');
-                    link.download = `${fileName}.jpg`;
-                    link.href = canvas.toDataURL('image/jpeg', 0.95);
+                    link.download = this.lastFileName;
+                    link.href = URL.createObjectURL(blob);
                     link.click();
+                    URL.revokeObjectURL(link.href);
                     
                     this.ui.showToast('이미지 파일이 저장되었습니다');
+                    
+                    return true;
                 } catch (error) {
                     console.error('이미지 생성 오류:', error);
                     this.ui.showToast('이미지 생성에 실패했습니다');
+                    return false;
+                }
+            }
+            
+            // Web Share API로 카카오톡 등에 공유
+            async shareToKakao() {
+                if (!this.lastImageBlob) {
+                    this.ui.showToast('공유할 이미지가 없습니다');
+                    return false;
+                }
+                
+                try {
+                    // Web Share API 지원 확인
+                    if (!navigator.share) {
+                        this.ui.showToast('이 브라우저에서는 공유 기능을 지원하지 않습니다');
+                        return false;
+                    }
+                    
+                    // 파일 객체 생성
+                    const file = new File([this.lastImageBlob], this.lastFileName, {
+                        type: 'image/jpeg'
+                    });
+                    
+                    // 파일 공유 지원 확인
+                    if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+                        this.ui.showToast('파일 공유를 지원하지 않는 환경입니다');
+                        return false;
+                    }
+                    
+                    // 공유 실행 (카카오톡, 메시지 등 선택 가능)
+                    await navigator.share({
+                        title: '통친회 회계 보고서',
+                        text: '회계 보고서 이미지입니다.',
+                        files: [file]
+                    });
+                    
+                    this.ui.showToast('공유되었습니다');
+                    return true;
+                    
+                } catch (error) {
+                    // 사용자가 공유 취소한 경우
+                    if (error.name === 'AbortError') {
+                        this.ui.showToast('공유가 취소되었습니다');
+                    } else {
+                        console.error('공유 오류:', error);
+                        this.ui.showToast('공유에 실패했습니다');
+                    }
+                    return false;
                 }
             }
         }
@@ -1539,6 +1621,9 @@
             
             // 삭제 확인
             document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
+            
+            // 카카오톡 공유 확인
+            document.getElementById('confirmShareBtn').addEventListener('click', confirmShare);
         }
         
         // 데이터 새로고침
@@ -1887,7 +1972,29 @@
             const printArea = document.getElementById('printArea');
             const fileName = `${currentReportData.title}_${currentReportData.periodStr.replace(/[^0-9가-힣]/g, '_')}`;
             
-            await imageExporter.export(printArea, fileName);
+            // 이미지 생성 및 다운로드
+            const success = await imageExporter.export(printArea, fileName);
+            
+            // 이미지 생성 성공 시 카카오톡 공유 모달 표시
+            if (success) {
+                showShareModal();
+            }
+        }
+        
+        // 공유 모달 표시
+        function showShareModal() {
+            document.getElementById('shareModal').classList.add('show');
+        }
+        
+        // 공유 모달 닫기
+        function closeShareModal() {
+            document.getElementById('shareModal').classList.remove('show');
+        }
+        
+        // 카카오톡 공유 실행
+        async function confirmShare() {
+            closeShareModal();
+            await imageExporter.shareToKakao();
         }
         
         // 앱 시작
