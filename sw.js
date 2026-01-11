@@ -2,7 +2,7 @@
 // Service Worker - 오프라인 캐싱 및 PWA 지원
 // ============================================
 
-const CACHE_NAME = 'accounting-app-v2';
+const CACHE_NAME = 'accounting-app-v3';
 const urlsToCache = [
     './',
     './index.html',
