@@ -534,37 +534,43 @@
         
         .print-area {
             background: white;
-            padding: 30px;
+            padding: 40px;
             font-family: 'Noto Sans KR', sans-serif;
+            /* A4 용지 비율 (210mm x 297mm) */
+            width: 595px;
+            min-height: 842px;
+            margin: 0 auto;
+            box-sizing: border-box;
         }
         
         .print-header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
         
         .print-header h2 {
-            font-size: 1.5rem;
-            margin-bottom: 8px;
+            font-size: 18px;
+            margin-bottom: 6px;
         }
         
         .print-header .period {
-            font-size: 1rem;
+            font-size: 14px;
             color: #666;
         }
         
         .print-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+            font-size: 11px;
         }
         
         .print-table th,
         .print-table td {
             border: 1px solid #333;
-            padding: 10px;
+            padding: 6px 4px;
             text-align: center;
-            font-size: 0.9rem;
+            font-size: 11px;
         }
         
         .print-table th {
@@ -583,14 +589,14 @@
         .print-summary {
             display: flex;
             justify-content: flex-end;
-            gap: 30px;
-            margin-bottom: 40px;
-            font-size: 1rem;
+            gap: 20px;
+            margin-bottom: 30px;
+            font-size: 12px;
         }
         
         .print-summary div {
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
         
         .print-summary .label {
@@ -599,11 +605,11 @@
         
         /* 결재란 */
         .approval-section {
-            margin-top: 50px;
+            margin-top: 40px;
         }
         
         .approval-table {
-            width: 300px;
+            width: 200px;
             margin-left: auto;
             border-collapse: collapse;
         }
@@ -611,19 +617,19 @@
         .approval-table th,
         .approval-table td {
             border: 1px solid #333;
-            padding: 8px 16px;
+            padding: 6px 12px;
             text-align: center;
         }
         
         .approval-table th {
             background: #f0f0f0;
             font-weight: 600;
-            font-size: 0.85rem;
+            font-size: 11px;
         }
         
         .approval-table td {
-            height: 60px;
-            font-size: 0.85rem;
+            height: 50px;
+            font-size: 11px;
         }
         
         /* 토스트 메시지 */
@@ -1569,7 +1575,7 @@
                     <div class="print-header">
                         <h2>${title}</h2>
                         <div class="period">${periodStr}</div>
-                        <div style="font-size: 0.85rem; color: #888; margin-top: 8px;">
+                        <div style="font-size: 10px; color: #888; margin-top: 6px;">
                             출력일: ${new Date().toLocaleDateString('ko-KR')}
                         </div>
                     </div>
@@ -1577,13 +1583,13 @@
                     <table class="print-table">
                         <thead>
                             <tr>
-                                <th style="width:40px">번호</th>
-                                <th style="width:90px">날짜</th>
+                                <th style="width:30px">번호</th>
+                                <th style="width:70px">날짜</th>
                                 <th>내용</th>
-                                <th style="width:90px">수입</th>
-                                <th style="width:90px">지출</th>
-                                <th style="width:90px">잔액</th>
-                                <th style="width:100px">비고</th>
+                                <th style="width:65px">수입</th>
+                                <th style="width:65px">지출</th>
+                                <th style="width:65px">잔액</th>
+                                <th style="width:70px">비고</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1643,6 +1649,10 @@
         class ExcelExporter {
             constructor(ui) {
                 this.ui = ui;
+                
+                // A4 용지 기준 행 수 (대략)
+                this.ROWS_PER_PAGE_FIRST = 30;  // 첫 페이지 (헤더 + 결재란 공간 고려)
+                this.ROWS_PER_PAGE_OTHER = 40;  // 나머지 페이지
             }
             
             // 엑셀 파일 생성 및 다운로드
@@ -1650,58 +1660,152 @@
                 // 워크북 생성
                 const wb = XLSX.utils.book_new();
                 
-                // 데이터 배열 생성
+                // 페이지별로 데이터 분할
+                const pages = this.splitIntoPages(entries);
+                const totalPages = pages.length;
+                
+                // 전체 데이터 배열
                 const data = [];
+                const merges = [];      // 셀 병합 정보
+                const rowBreaks = [];   // 페이지 나누기 위치
                 
-                // 제목 행
-                data.push([title]);
-                data.push([periodStr]);
-                data.push([`출력일: ${new Date().toLocaleDateString('ko-KR')}`]);
-                data.push([]);
-                
-                // 헤더 행
-                data.push(['번호', '날짜', '내용', '수입', '지출', '잔액', '비고']);
-                
-                // 데이터 행
+                let currentRow = 0;
                 let runningBalance = 0;
-                entries.forEach((entry, index) => {
-                    runningBalance += (entry.income || 0) - (entry.expense || 0);
-                    data.push([
-                        index + 1,
-                        entry.date,
-                        entry.description,
-                        entry.income || '',
-                        entry.expense || '',
-                        runningBalance,
-                        entry.note || ''
-                    ]);
+                let entryIndex = 0;
+                
+                pages.forEach((pageEntries, pageNum) => {
+                    const isFirstPage = (pageNum === 0);
+                    const isLastPage = (pageNum === totalPages - 1);
+                    const pageStartRow = currentRow;
+                    
+                    // 페이지 번호 표시
+                    const pageInfo = totalPages > 1 ? ` (${pageNum + 1}/${totalPages} 페이지)` : '';
+                    
+                    // === 헤더 섹션 ===
+                    // 제목 (병합)
+                    data.push([title + pageInfo, '', '', '', '', '', '']);
+                    merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 6 } });
+                    currentRow++;
+                    
+                    // 기간
+                    data.push([periodStr, '', '', '', '', '', '']);
+                    merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 6 } });
+                    currentRow++;
+                    
+                    // 출력일
+                    data.push([`출력일: ${new Date().toLocaleDateString('ko-KR')}`, '', '', '', '', '', '']);
+                    merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 6 } });
+                    currentRow++;
+                    
+                    // 빈 행
+                    data.push(['', '', '', '', '', '', '']);
+                    currentRow++;
+                    
+                    // 테이블 헤더
+                    data.push(['번호', '날짜', '내용', '수입', '지출', '잔액', '비고']);
+                    currentRow++;
+                    
+                    // === 데이터 행 ===
+                    pageEntries.forEach((entry) => {
+                        runningBalance += (entry.income || 0) - (entry.expense || 0);
+                        entryIndex++;
+                        data.push([
+                            entryIndex,
+                            entry.date,
+                            entry.description,
+                            entry.income || '',
+                            entry.expense || '',
+                            runningBalance,
+                            entry.note || ''
+                        ]);
+                        currentRow++;
+                    });
+                    
+                    // === 마지막 페이지: 합계 및 결재란 ===
+                    if (isLastPage) {
+                        // 빈 행
+                        data.push(['', '', '', '', '', '', '']);
+                        currentRow++;
+                        
+                        // 합계 행
+                        data.push(['', '', '합  계', totals.income, totals.expense, totals.balance, '']);
+                        currentRow++;
+                        
+                        // 빈 행들
+                        data.push(['', '', '', '', '', '', '']);
+                        currentRow++;
+                        data.push(['', '', '', '', '', '', '']);
+                        currentRow++;
+                        
+                        // 요약 정보
+                        data.push(['', '', '', `총 수입: ${this.formatNumber(totals.income)}원`, '', `총 지출: ${this.formatNumber(totals.expense)}원`, `잔액: ${this.formatNumber(totals.balance)}원`]);
+                        currentRow++;
+                        
+                        // 빈 행들
+                        data.push(['', '', '', '', '', '', '']);
+                        currentRow++;
+                        data.push(['', '', '', '', '', '', '']);
+                        currentRow++;
+                        
+                        // 결재란 헤더
+                        data.push(['', '', '', '', '총무', '회장', '감사']);
+                        currentRow++;
+                        
+                        // 결재란 서명 공간 (3행)
+                        data.push(['', '', '', '', '', '', '']);
+                        currentRow++;
+                        data.push(['', '', '', '', '', '', '']);
+                        currentRow++;
+                        data.push(['', '', '', '', '', '', '']);
+                        currentRow++;
+                    } else {
+                        // 페이지 나누기 전 여백
+                        for (let i = 0; i < 3; i++) {
+                            data.push(['', '', '', '', '', '', '']);
+                            currentRow++;
+                        }
+                        
+                        // 페이지 나누기 위치 기록
+                        rowBreaks.push(currentRow);
+                    }
                 });
-                
-                // 합계 행
-                data.push([]);
-                data.push(['', '', '합계', totals.income, totals.expense, totals.balance, '']);
-                
-                // 빈 행
-                data.push([]);
-                data.push([]);
-                
-                // 결재란
-                data.push(['', '', '', '', '총무', '회장', '감사']);
-                data.push(['', '', '', '', '', '', '']);
                 
                 // 워크시트 생성
                 const ws = XLSX.utils.aoa_to_sheet(data);
+                
+                // 셀 병합 적용
+                ws['!merges'] = merges;
                 
                 // 열 너비 설정
                 ws['!cols'] = [
                     { wch: 6 },   // 번호
                     { wch: 12 },  // 날짜
-                    { wch: 30 },  // 내용
+                    { wch: 28 },  // 내용
                     { wch: 12 },  // 수입
                     { wch: 12 },  // 지출
                     { wch: 12 },  // 잔액
-                    { wch: 15 }   // 비고
+                    { wch: 14 }   // 비고
                 ];
+                
+                // 행 높이 설정 (A4 맞춤)
+                ws['!rows'] = [];
+                for (let i = 0; i < data.length; i++) {
+                    ws['!rows'][i] = { hpt: 18 };  // 기본 행 높이
+                }
+                
+                // 페이지 나누기 설정
+                if (rowBreaks.length > 0) {
+                    ws['!rowBreaks'] = rowBreaks.map(r => ({ row: r }));
+                }
+                
+                // 인쇄 설정
+                ws['!pageSetup'] = {
+                    paperSize: 9,           // A4
+                    orientation: 'portrait', // 세로
+                    fitToPage: true,
+                    fitToWidth: 1,
+                    fitToHeight: 0
+                };
                 
                 // 워크시트 추가
                 XLSX.utils.book_append_sheet(wb, ws, '회계장부');
@@ -1710,7 +1814,39 @@
                 const fileName = `${title}_${periodStr.replace(/[^0-9가-힣]/g, '_')}.xlsx`;
                 XLSX.writeFile(wb, fileName);
                 
-                this.ui.showToast('엑셀 파일이 저장되었습니다');
+                if (totalPages > 1) {
+                    this.ui.showToast(`엑셀 파일이 저장되었습니다 (${totalPages}페이지)`);
+                } else {
+                    this.ui.showToast('엑셀 파일이 저장되었습니다');
+                }
+            }
+            
+            // 데이터를 페이지별로 분할
+            splitIntoPages(entries) {
+                if (entries.length === 0) return [[]];
+                
+                const pages = [];
+                let currentIndex = 0;
+                let pageNum = 0;
+                
+                while (currentIndex < entries.length) {
+                    const rowsPerPage = (pageNum === 0) 
+                        ? this.ROWS_PER_PAGE_FIRST 
+                        : this.ROWS_PER_PAGE_OTHER;
+                    
+                    const pageEntries = entries.slice(currentIndex, currentIndex + rowsPerPage);
+                    pages.push(pageEntries);
+                    
+                    currentIndex += rowsPerPage;
+                    pageNum++;
+                }
+                
+                return pages;
+            }
+            
+            // 숫자 포맷팅
+            formatNumber(num) {
+                return new Intl.NumberFormat('ko-KR').format(num || 0);
             }
         }
         
@@ -1720,36 +1856,120 @@
         class ImageExporter {
             constructor(ui) {
                 this.ui = ui;
-                this.lastImageBlob = null;  // 마지막 생성된 이미지 저장
-                this.lastFileName = '';
+                this.lastImageBlobs = [];  // 여러 페이지 이미지 저장
+                this.lastFileNames = [];
+                
+                // A4 용지 크기 (150 DPI 기준)
+                this.A4_WIDTH = 1240;
+                this.A4_HEIGHT = 1754;
+                
+                // 한 페이지에 들어갈 수 있는 최대 행 수 (헤더, 결재란 제외 기준)
+                this.ROWS_PER_PAGE_FIRST = 25;  // 첫 페이지 (결재란 포함)
+                this.ROWS_PER_PAGE_OTHER = 32;  // 나머지 페이지
             }
             
-            // 이미지 파일 생성 및 다운로드
-            async export(element, fileName) {
+            // 다중 페이지 이미지 생성
+            async exportMultiPage(entries, title, periodStr, totals, fileName) {
                 try {
-                    // A4 비율로 캔버스 생성
-                    const canvas = await html2canvas(element, {
-                        scale: 2,
-                        useCORS: true,
-                        backgroundColor: '#ffffff'
-                    });
+                    const totalEntries = entries.length;
                     
-                    // Blob으로 변환하여 저장
-                    const blob = await new Promise(resolve => {
-                        canvas.toBlob(resolve, 'image/jpeg', 0.95);
-                    });
+                    // 페이지별로 데이터 분할
+                    const pages = this.splitIntoPages(entries);
+                    const totalPages = pages.length;
                     
-                    this.lastImageBlob = blob;
-                    this.lastFileName = `${fileName}.jpg`;
+                    this.lastImageBlobs = [];
+                    this.lastFileNames = [];
                     
-                    // 이미지 다운로드
-                    const link = document.createElement('a');
-                    link.download = this.lastFileName;
-                    link.href = URL.createObjectURL(blob);
-                    link.click();
-                    URL.revokeObjectURL(link.href);
+                    // 각 페이지별 이미지 생성
+                    for (let pageNum = 0; pageNum < totalPages; pageNum++) {
+                        const isFirstPage = (pageNum === 0);
+                        const isLastPage = (pageNum === totalPages - 1);
+                        
+                        // 페이지 HTML 생성
+                        const pageHTML = this.generatePageHTML(
+                            pages[pageNum],
+                            title,
+                            periodStr,
+                            totals,
+                            pageNum + 1,
+                            totalPages,
+                            isFirstPage,
+                            isLastPage
+                        );
+                        
+                        // 임시 요소 생성
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = pageHTML;
+                        tempDiv.style.position = 'absolute';
+                        tempDiv.style.left = '-9999px';
+                        tempDiv.style.width = '595px';
+                        tempDiv.style.minHeight = '842px';
+                        tempDiv.style.background = 'white';
+                        tempDiv.style.padding = '40px';
+                        tempDiv.style.boxSizing = 'border-box';
+                        tempDiv.style.fontFamily = "'Noto Sans KR', sans-serif";
+                        document.body.appendChild(tempDiv);
+                        
+                        // 캔버스 생성
+                        const originalCanvas = await html2canvas(tempDiv, {
+                            scale: 2,
+                            useCORS: true,
+                            backgroundColor: '#ffffff'
+                        });
+                        
+                        // 임시 요소 제거
+                        document.body.removeChild(tempDiv);
+                        
+                        // A4 크기 캔버스에 맞추기
+                        const a4Canvas = document.createElement('canvas');
+                        a4Canvas.width = this.A4_WIDTH;
+                        a4Canvas.height = this.A4_HEIGHT;
+                        const ctx = a4Canvas.getContext('2d');
+                        
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, this.A4_WIDTH, this.A4_HEIGHT);
+                        
+                        const scale = Math.min(
+                            this.A4_WIDTH / originalCanvas.width,
+                            this.A4_HEIGHT / originalCanvas.height
+                        );
+                        
+                        const scaledWidth = originalCanvas.width * scale;
+                        const scaledHeight = originalCanvas.height * scale;
+                        const x = (this.A4_WIDTH - scaledWidth) / 2;
+                        
+                        ctx.drawImage(originalCanvas, x, 0, scaledWidth, scaledHeight);
+                        
+                        // Blob 저장
+                        const blob = await new Promise(resolve => {
+                            a4Canvas.toBlob(resolve, 'image/jpeg', 0.95);
+                        });
+                        
+                        const pageFileName = totalPages > 1 
+                            ? `${fileName}_${pageNum + 1}of${totalPages}.jpg`
+                            : `${fileName}.jpg`;
+                        
+                        this.lastImageBlobs.push(blob);
+                        this.lastFileNames.push(pageFileName);
+                        
+                        // 파일 다운로드
+                        const link = document.createElement('a');
+                        link.download = pageFileName;
+                        link.href = URL.createObjectURL(blob);
+                        link.click();
+                        URL.revokeObjectURL(link.href);
+                        
+                        // 다음 다운로드 전 잠시 대기
+                        if (pageNum < totalPages - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                        }
+                    }
                     
-                    this.ui.showToast('이미지 파일이 저장되었습니다');
+                    if (totalPages > 1) {
+                        this.ui.showToast(`A4 이미지 ${totalPages}장이 저장되었습니다`);
+                    } else {
+                        this.ui.showToast('A4 이미지가 저장되었습니다');
+                    }
                     
                     return true;
                 } catch (error) {
@@ -1759,43 +1979,170 @@
                 }
             }
             
-            // Web Share API로 카카오톡 등에 공유
+            // 데이터를 페이지별로 분할
+            splitIntoPages(entries) {
+                if (entries.length === 0) return [[]];
+                
+                const pages = [];
+                let currentIndex = 0;
+                let pageNum = 0;
+                
+                while (currentIndex < entries.length) {
+                    const rowsPerPage = (pageNum === 0) 
+                        ? this.ROWS_PER_PAGE_FIRST 
+                        : this.ROWS_PER_PAGE_OTHER;
+                    
+                    const pageEntries = entries.slice(currentIndex, currentIndex + rowsPerPage);
+                    pages.push(pageEntries);
+                    
+                    currentIndex += rowsPerPage;
+                    pageNum++;
+                }
+                
+                return pages;
+            }
+            
+            // 페이지별 HTML 생성
+            generatePageHTML(entries, title, periodStr, totals, pageNum, totalPages, isFirstPage, isLastPage) {
+                let runningBalance = 0;
+                
+                // 이전 페이지까지의 잔액 계산
+                if (!isFirstPage && totals.previousBalance !== undefined) {
+                    runningBalance = totals.previousBalance;
+                }
+                
+                let rowsHTML = '';
+                const startIndex = isFirstPage ? 0 : (this.ROWS_PER_PAGE_FIRST + (pageNum - 2) * this.ROWS_PER_PAGE_OTHER);
+                
+                entries.forEach((entry, index) => {
+                    runningBalance += (entry.income || 0) - (entry.expense || 0);
+                    rowsHTML += `
+                        <tr>
+                            <td>${startIndex + index + 1}</td>
+                            <td>${entry.date}</td>
+                            <td style="text-align:left">${entry.description}</td>
+                            <td style="text-align:right">${entry.income ? this.formatNumber(entry.income) : ''}</td>
+                            <td style="text-align:right">${entry.expense ? this.formatNumber(entry.expense) : ''}</td>
+                            <td style="text-align:right">${this.formatNumber(runningBalance)}</td>
+                            <td style="text-align:left">${entry.note || ''}</td>
+                        </tr>
+                    `;
+                });
+                
+                if (entries.length === 0) {
+                    rowsHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;">데이터가 없습니다</td></tr>';
+                }
+                
+                // 페이지 번호 표시
+                const pageInfo = totalPages > 1 ? `(${pageNum}/${totalPages} 페이지)` : '';
+                
+                // 합계 및 결재란은 마지막 페이지에만
+                const summaryHTML = isLastPage ? `
+                    <tfoot>
+                        <tr style="font-weight:bold; background:#f8f9fa;">
+                            <td colspan="3" style="text-align:right">합계</td>
+                            <td style="text-align:right">${this.formatNumber(totals.income)}</td>
+                            <td style="text-align:right">${this.formatNumber(totals.expense)}</td>
+                            <td style="text-align:right">${this.formatNumber(totals.balance)}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                ` : '';
+                
+                const approvalHTML = isLastPage ? `
+                    <div style="margin-top: 30px;">
+                        <div style="display:flex; justify-content:flex-end; gap:20px; margin-bottom:20px; font-size:12px;">
+                            <div><span style="font-weight:600">총 수입:</span> <span style="color:#2196F3">${this.formatNumber(totals.income)}원</span></div>
+                            <div><span style="font-weight:600">총 지출:</span> <span style="color:#f44336">${this.formatNumber(totals.expense)}원</span></div>
+                            <div><span style="font-weight:600">잔액:</span> <span style="color:#4CAF50">${this.formatNumber(totals.balance)}원</span></div>
+                        </div>
+                        <table style="width:200px; margin-left:auto; border-collapse:collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="border:1px solid #333; padding:6px 12px; background:#f0f0f0; font-size:11px;">총무</th>
+                                    <th style="border:1px solid #333; padding:6px 12px; background:#f0f0f0; font-size:11px;">회장</th>
+                                    <th style="border:1px solid #333; padding:6px 12px; background:#f0f0f0; font-size:11px;">감사</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="border:1px solid #333; height:50px;"></td>
+                                    <td style="border:1px solid #333; height:50px;"></td>
+                                    <td style="border:1px solid #333; height:50px;"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                ` : '';
+                
+                return `
+                    <div style="text-align:center; margin-bottom:20px;">
+                        <h2 style="font-size:18px; margin-bottom:6px;">${title}</h2>
+                        <div style="font-size:14px; color:#666;">${periodStr} ${pageInfo}</div>
+                        <div style="font-size:10px; color:#888; margin-top:6px;">
+                            출력일: ${new Date().toLocaleDateString('ko-KR')}
+                        </div>
+                    </div>
+                    
+                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                        <thead>
+                            <tr>
+                                <th style="border:1px solid #333; padding:6px 4px; background:#f0f0f0; width:30px;">번호</th>
+                                <th style="border:1px solid #333; padding:6px 4px; background:#f0f0f0; width:70px;">날짜</th>
+                                <th style="border:1px solid #333; padding:6px 4px; background:#f0f0f0;">내용</th>
+                                <th style="border:1px solid #333; padding:6px 4px; background:#f0f0f0; width:65px;">수입</th>
+                                <th style="border:1px solid #333; padding:6px 4px; background:#f0f0f0; width:65px;">지출</th>
+                                <th style="border:1px solid #333; padding:6px 4px; background:#f0f0f0; width:65px;">잔액</th>
+                                <th style="border:1px solid #333; padding:6px 4px; background:#f0f0f0; width:70px;">비고</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHTML}
+                        </tbody>
+                        ${summaryHTML}
+                    </table>
+                    ${approvalHTML}
+                `;
+            }
+            
+            // 숫자 포맷팅
+            formatNumber(num) {
+                return new Intl.NumberFormat('ko-KR').format(num || 0);
+            }
+            
+            // Web Share API로 카카오톡 등에 공유 (첫 번째 이미지만)
             async shareToKakao() {
-                if (!this.lastImageBlob) {
+                if (this.lastImageBlobs.length === 0) {
                     this.ui.showToast('공유할 이미지가 없습니다');
                     return false;
                 }
                 
                 try {
-                    // Web Share API 지원 확인
                     if (!navigator.share) {
                         this.ui.showToast('이 브라우저에서는 공유 기능을 지원하지 않습니다');
                         return false;
                     }
                     
-                    // 파일 객체 생성
-                    const file = new File([this.lastImageBlob], this.lastFileName, {
-                        type: 'image/jpeg'
-                    });
+                    // 모든 페이지를 파일로 변환
+                    const files = this.lastImageBlobs.map((blob, index) => 
+                        new File([blob], this.lastFileNames[index], { type: 'image/jpeg' })
+                    );
                     
-                    // 파일 공유 지원 확인
-                    if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+                    if (navigator.canShare && !navigator.canShare({ files })) {
                         this.ui.showToast('파일 공유를 지원하지 않는 환경입니다');
                         return false;
                     }
                     
-                    // 공유 실행 (카카오톡, 메시지 등 선택 가능)
                     await navigator.share({
                         title: '통친회 회계 보고서',
-                        text: '회계 보고서 이미지입니다.',
-                        files: [file]
+                        text: `회계 보고서 이미지입니다. (총 ${files.length}장)`,
+                        files: files
                     });
                     
                     this.ui.showToast('공유되었습니다');
                     return true;
                     
                 } catch (error) {
-                    // 사용자가 공유 취소한 경우
                     if (error.name === 'AbortError') {
                         this.ui.showToast('공유가 취소되었습니다');
                     } else {
@@ -2332,11 +2679,16 @@
                 return;
             }
             
-            const printArea = document.getElementById('printArea');
             const fileName = `${currentReportData.title}_${currentReportData.periodStr.replace(/[^0-9가-힣]/g, '_')}`;
             
-            // 이미지 생성 및 다운로드
-            const success = await imageExporter.export(printArea, fileName);
+            // 다중 페이지 이미지 생성 및 다운로드
+            const success = await imageExporter.exportMultiPage(
+                currentReportData.entries,
+                currentReportData.title,
+                currentReportData.periodStr,
+                currentReportData.totals,
+                fileName
+            );
             
             // 이미지 생성 성공 시 카카오톡 공유 모달 표시
             if (success) {
