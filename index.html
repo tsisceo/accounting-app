@@ -1,0 +1,1897 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2196F3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>통친회 회계장부 관리</title>
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- html2canvas for image export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        :root {
+            --primary-color: #2196F3;
+            --primary-dark: #1976D2;
+            --success-color: #4CAF50;
+            --danger-color: #f44336;
+            --warning-color: #FF9800;
+            --bg-color: #f5f5f5;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #e0e0e0;
+        }
+        
+        body {
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        
+        /* 헤더 스타일 */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            padding: 16px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .header .subtitle {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+        
+        /* 탭 네비게이션 */
+        .tab-nav {
+            display: flex;
+            background: white;
+            padding: 8px;
+            gap: 6px;
+            position: sticky;
+            top: 76px;
+            z-index: 99;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 12px 8px;
+            border: 2px solid var(--border-color);
+            background: #f8f9fa;
+            font-size: 0.85rem;
+            color: #666;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .tab-btn:hover {
+            background: #e3f2fd;
+            border-color: #90caf9;
+        }
+        
+        .tab-btn.active {
+            color: white;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border-color: var(--primary-dark);
+            font-weight: 600;
+            box-shadow: 0 3px 8px rgba(33, 150, 243, 0.3);
+        }
+        
+        .tab-btn .tab-icon {
+            font-size: 1.3rem;
+        }
+        
+        .tab-btn .tab-label {
+            font-size: 0.75rem;
+        }
+        
+        /* 입력 탭 - 초록색 테마 */
+        .tab-btn[data-tab="input"].active {
+            background: linear-gradient(135deg, #4CAF50, #388E3C);
+            border-color: #388E3C;
+            box-shadow: 0 3px 8px rgba(76, 175, 80, 0.3);
+        }
+        
+        .tab-btn[data-tab="input"]:hover:not(.active) {
+            background: #e8f5e9;
+            border-color: #a5d6a7;
+        }
+        
+        /* 목록 탭 - 파란색 테마 */
+        .tab-btn[data-tab="list"].active {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            border-color: #1976D2;
+            box-shadow: 0 3px 8px rgba(33, 150, 243, 0.3);
+        }
+        
+        .tab-btn[data-tab="list"]:hover:not(.active) {
+            background: #e3f2fd;
+            border-color: #90caf9;
+        }
+        
+        /* 보고서 탭 - 주황색 테마 */
+        .tab-btn[data-tab="report"].active {
+            background: linear-gradient(135deg, #FF9800, #F57C00);
+            border-color: #F57C00;
+            box-shadow: 0 3px 8px rgba(255, 152, 0, 0.3);
+        }
+        
+        .tab-btn[data-tab="report"]:hover:not(.active) {
+            background: #fff3e0;
+            border-color: #ffcc80;
+        }
+        
+        /* 컨테이너 */
+        .container {
+            padding: 16px;
+            max-width: 100%;
+        }
+        
+        /* 카드 스타일 */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* 입력 폼 스타일 */
+        .form-group {
+            margin-bottom: 14px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #555;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        /* 버튼 스타일 */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+        
+        .btn-outline {
+            background: white;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .btn-block {
+            width: 100%;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .btn-group .btn {
+            flex: 1;
+            min-width: 100px;
+        }
+        
+        /* 데이터 그리드 스타일 */
+        .data-grid {
+            overflow-x: auto;
+            margin: -16px;
+            margin-top: 0;
+            padding: 0 16px 16px;
+        }
+        
+        .data-table {
+            width: 100%;
+            min-width: 600px;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .data-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            position: sticky;
+            top: 0;
+        }
+        
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .data-table .amount-income {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .data-table .amount-expense {
+            color: var(--danger-color);
+            font-weight: 600;
+        }
+        
+        .data-table .actions {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .data-table .actions button {
+            padding: 6px 10px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+        }
+        
+        /* 요약 카드 */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        
+        .summary-card {
+            background: white;
+            padding: 14px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+        
+        .summary-card .label {
+            font-size: 0.75rem;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        
+        .summary-card .value {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+        
+        .summary-card.income .value {
+            color: var(--primary-color);
+        }
+        
+        .summary-card.expense .value {
+            color: var(--danger-color);
+        }
+        
+        .summary-card.balance .value {
+            color: var(--success-color);
+        }
+        
+        /* 검색 필터 */
+        .filter-section {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        
+        .filter-section select,
+        .filter-section input {
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        /* 탭 컨텐츠 */
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 탭 컨텐츠 헤더 배너 */
+        .tab-header {
+            padding: 16px;
+            margin: -16px -16px 16px -16px;
+            border-radius: 12px 12px 0 0;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 6px;
+        }
+        
+        .tab-header .header-icon {
+            font-size: 1.8rem;
+        }
+        
+        .tab-header .header-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .tab-header .header-desc {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+        
+        .tab-header.input-header {
+            background: linear-gradient(135deg, #4CAF50, #388E3C);
+        }
+        
+        .tab-header.list-header {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+        }
+        
+        .tab-header.report-header {
+            background: linear-gradient(135deg, #FF9800, #F57C00);
+        }
+        
+        /* 출력 미리보기 (A4) */
+        .print-preview {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+        
+        .print-area {
+            background: white;
+            padding: 30px;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        
+        .print-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .print-header h2 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+        
+        .print-header .period {
+            font-size: 1rem;
+            color: #666;
+        }
+        
+        .print-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        .print-table th,
+        .print-table td {
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        
+        .print-table th {
+            background: #f0f0f0;
+            font-weight: 600;
+        }
+        
+        .print-table .text-left {
+            text-align: left;
+        }
+        
+        .print-table .text-right {
+            text-align: right;
+        }
+        
+        .print-summary {
+            display: flex;
+            justify-content: flex-end;
+            gap: 30px;
+            margin-bottom: 40px;
+            font-size: 1rem;
+        }
+        
+        .print-summary div {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .print-summary .label {
+            font-weight: 600;
+        }
+        
+        /* 결재란 */
+        .approval-section {
+            margin-top: 50px;
+        }
+        
+        .approval-table {
+            width: 300px;
+            margin-left: auto;
+            border-collapse: collapse;
+        }
+        
+        .approval-table th,
+        .approval-table td {
+            border: 1px solid #333;
+            padding: 8px 16px;
+            text-align: center;
+        }
+        
+        .approval-table th {
+            background: #f0f0f0;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        .approval-table td {
+            height: 60px;
+            font-size: 0.85rem;
+        }
+        
+        /* 토스트 메시지 */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .toast.show {
+            opacity: 1;
+        }
+        
+        /* 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h3 {
+            font-size: 1.1rem;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .modal-body {
+            padding: 16px;
+        }
+        
+        .modal-footer {
+            padding: 16px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        
+        /* 빈 상태 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #888;
+        }
+        
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        /* 숫자 포맷 */
+        .number {
+            font-variant-numeric: tabular-nums;
+        }
+        
+        /* 반응형 */
+        @media (max-width: 400px) {
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+            
+            .btn-group .btn {
+                width: 100%;
+            }
+        }
+        
+        /* 다크모드 지원 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #1a1a1a;
+                --card-bg: #2d2d2d;
+                --text-color: #e0e0e0;
+                --border-color: #404040;
+            }
+            
+            .tab-nav {
+                background: #252525;
+            }
+            
+            .tab-btn {
+                background: #333;
+                border-color: #404040;
+                color: #aaa;
+            }
+            
+            .tab-btn:hover:not(.active) {
+                background: #3a3a3a;
+            }
+            
+            .data-table th {
+                background: #333;
+            }
+            
+            .data-table tr:hover {
+                background: #333;
+            }
+            
+            .form-group input,
+            .form-group textarea,
+            .form-group select,
+            .filter-section select,
+            .filter-section input {
+                background: #333;
+                color: #e0e0e0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <h1>📒 통친회 회계장부 관리</h1>
+        <div class="subtitle" id="currentDate"></div>
+    </header>
+    
+    <!-- 탭 네비게이션 -->
+    <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="input">
+            <span class="tab-icon">✏️</span>
+            <span class="tab-label">입력</span>
+        </button>
+        <button class="tab-btn" data-tab="list">
+            <span class="tab-icon">📋</span>
+            <span class="tab-label">목록</span>
+        </button>
+        <button class="tab-btn" data-tab="report">
+            <span class="tab-icon">📊</span>
+            <span class="tab-label">보고서</span>
+        </button>
+    </nav>
+    
+    <!-- 입력 탭 -->
+    <div id="input" class="tab-content active">
+        <div class="container">
+            <!-- 탭 헤더 배너 -->
+            <div class="card" style="padding: 0; overflow: hidden;">
+                <div class="tab-header input-header">
+                    <span class="header-icon">✏️</span>
+                    <div class="header-title">수입/지출 입력</div>
+                    <div class="header-desc">새로운 거래 내역을 기록합니다</div>
+                </div>
+            </div>
+            
+            <!-- 요약 카드 -->
+            <div class="summary-cards">
+                <div class="summary-card income">
+                    <div class="label">총 수입</div>
+                    <div class="value number" id="totalIncome">0</div>
+                </div>
+                <div class="summary-card expense">
+                    <div class="label">총 지출</div>
+                    <div class="value number" id="totalExpense">0</div>
+                </div>
+                <div class="summary-card balance">
+                    <div class="label">잔액</div>
+                    <div class="value number" id="totalBalance">0</div>
+                </div>
+            </div>
+            
+            <!-- 입력 폼 -->
+            <div class="card">
+                <div class="card-title">
+                    <span>✏️</span> 새 항목 입력
+                </div>
+                <form id="entryForm">
+                    <input type="hidden" id="editId" value="">
+                    
+                    <div class="form-group">
+                        <label for="entryDate">입력날짜</label>
+                        <input type="date" id="entryDate" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">내용</label>
+                        <input type="text" id="description" placeholder="내용을 입력하세요" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="income">수입</label>
+                            <input type="number" id="income" placeholder="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="expense">지출</label>
+                            <input type="number" id="expense" placeholder="0" min="0">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="note">비고</label>
+                        <input type="text" id="note" placeholder="비고 (선택사항)">
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <span id="submitBtnText">저장</span>
+                        </button>
+                        <button type="button" class="btn btn-outline" id="cancelEdit" style="display:none;">
+                            취소
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- 최근 입력 목록 -->
+            <div class="card">
+                <div class="card-title">
+                    <span>📋</span> 최근 입력 내역
+                </div>
+                <div class="data-grid">
+                    <table class="data-table" id="recentTable">
+                        <thead>
+                            <tr>
+                                <th>날짜</th>
+                                <th>내용</th>
+                                <th>수입</th>
+                                <th>지출</th>
+                                <th>비고</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 목록 탭 -->
+    <div id="list" class="tab-content">
+        <div class="container">
+            <!-- 탭 헤더 배너 -->
+            <div class="card" style="padding: 0; overflow: hidden;">
+                <div class="tab-header list-header">
+                    <span class="header-icon">📋</span>
+                    <div class="header-title">거래 내역 조회</div>
+                    <div class="header-desc">월/분기/반기별로 검색합니다</div>
+                </div>
+            </div>
+            
+            <!-- 검색 필터 -->
+            <div class="card">
+                <div class="card-title">
+                    <span>🔍</span> 검색
+                </div>
+                <div class="filter-section">
+                    <select id="filterYear">
+                        <option value="">연도 선택</option>
+                    </select>
+                    <select id="filterMonth">
+                        <option value="">월 선택</option>
+                        <option value="1">1월</option>
+                        <option value="2">2월</option>
+                        <option value="3">3월</option>
+                        <option value="4">4월</option>
+                        <option value="5">5월</option>
+                        <option value="6">6월</option>
+                        <option value="7">7월</option>
+                        <option value="8">8월</option>
+                        <option value="9">9월</option>
+                        <option value="10">10월</option>
+                        <option value="11">11월</option>
+                        <option value="12">12월</option>
+                    </select>
+                </div>
+                <div class="btn-group" style="margin-top: 12px;">
+                    <button class="btn btn-outline" onclick="searchByPeriod('month')">월별</button>
+                    <button class="btn btn-outline" onclick="searchByPeriod('quarter')">분기별</button>
+                    <button class="btn btn-outline" onclick="searchByPeriod('half')">반기별</button>
+                    <button class="btn btn-primary" onclick="searchAll()">전체</button>
+                </div>
+            </div>
+            
+            <!-- 검색 결과 요약 -->
+            <div class="summary-cards" id="searchSummary" style="display:none;">
+                <div class="summary-card income">
+                    <div class="label">수입 합계</div>
+                    <div class="value number" id="searchIncome">0</div>
+                </div>
+                <div class="summary-card expense">
+                    <div class="label">지출 합계</div>
+                    <div class="value number" id="searchExpense">0</div>
+                </div>
+                <div class="summary-card balance">
+                    <div class="label">잔액</div>
+                    <div class="value number" id="searchBalance">0</div>
+                </div>
+            </div>
+            
+            <!-- 검색 결과 목록 -->
+            <div class="card">
+                <div class="card-title">
+                    <span>📊</span> 검색 결과 <span id="searchPeriodLabel"></span>
+                </div>
+                <div class="data-grid">
+                    <table class="data-table" id="searchTable">
+                        <thead>
+                            <tr>
+                                <th>날짜</th>
+                                <th>내용</th>
+                                <th>수입</th>
+                                <th>지출</th>
+                                <th>비고</th>
+                            </tr>
+                        </thead>
+                        <tbody id="searchTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 보고서 탭 -->
+    <div id="report" class="tab-content">
+        <div class="container">
+            <!-- 탭 헤더 배너 -->
+            <div class="card" style="padding: 0; overflow: hidden;">
+                <div class="tab-header report-header">
+                    <span class="header-icon">📊</span>
+                    <div class="header-title">보고서 출력</div>
+                    <div class="header-desc">엑셀/이미지로 저장합니다</div>
+                </div>
+            </div>
+            
+            <!-- 보고서 설정 -->
+            <div class="card">
+                <div class="card-title">
+                    <span>📄</span> 보고서 생성
+                </div>
+                <div class="form-group">
+                    <label>보고서 제목</label>
+                    <input type="text" id="reportTitle" value="통친회 회계 보고서" placeholder="보고서 제목">
+                </div>
+                <div class="filter-section">
+                    <select id="reportYear">
+                        <option value="">연도</option>
+                    </select>
+                    <select id="reportPeriod">
+                        <option value="">기간 선택</option>
+                        <option value="1">1월</option>
+                        <option value="2">2월</option>
+                        <option value="3">3월</option>
+                        <option value="4">4월</option>
+                        <option value="5">5월</option>
+                        <option value="6">6월</option>
+                        <option value="7">7월</option>
+                        <option value="8">8월</option>
+                        <option value="9">9월</option>
+                        <option value="10">10월</option>
+                        <option value="11">11월</option>
+                        <option value="12">12월</option>
+                        <option value="q1">1분기 (1-3월)</option>
+                        <option value="q2">2분기 (4-6월)</option>
+                        <option value="q3">3분기 (7-9월)</option>
+                        <option value="q4">4분기 (10-12월)</option>
+                        <option value="h1">상반기 (1-6월)</option>
+                        <option value="h2">하반기 (7-12월)</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary btn-block" onclick="generateReport()" style="margin-top: 12px;">
+                    보고서 미리보기
+                </button>
+            </div>
+            
+            <!-- 보고서 미리보기 -->
+            <div class="print-preview" id="printPreview" style="display:none;">
+                <div class="btn-group" style="margin-bottom: 16px;">
+                    <button class="btn btn-success" onclick="exportToExcel()">
+                        📊 엑셀 저장
+                    </button>
+                    <button class="btn btn-warning" onclick="exportToImage()">
+                        🖼️ 이미지 저장
+                    </button>
+                </div>
+                
+                <div class="print-area" id="printArea">
+                    <!-- 동적으로 생성됨 -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 삭제 확인 모달 -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>삭제 확인</h3>
+                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>정말 이 항목을 삭제하시겠습니까?</p>
+                <p style="color: #888; font-size: 0.9rem; margin-top: 8px;">삭제된 데이터는 복구할 수 없습니다.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeDeleteModal()">취소</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">삭제</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 토스트 메시지 -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ============================================
+        // 데이터베이스 관리 클래스 (IndexedDB - SQLite 대체)
+        // ============================================
+        class AccountingDB {
+            constructor() {
+                this.dbName = 'AccountingDB';
+                this.dbVersion = 1;
+                this.storeName = 'entries';
+                this.db = null;
+            }
+            
+            // 데이터베이스 초기화
+            async init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.dbVersion);
+                    
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => {
+                        this.db = request.result;
+                        resolve(this.db);
+                    };
+                    
+                    // 데이터베이스 스키마 생성
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        
+                        if (!db.objectStoreNames.contains(this.storeName)) {
+                            const store = db.createObjectStore(this.storeName, {
+                                keyPath: 'id',
+                                autoIncrement: true
+                            });
+                            
+                            // 인덱스 생성 (검색 성능 향상)
+                            store.createIndex('date', 'date', { unique: false });
+                            store.createIndex('yearMonth', 'yearMonth', { unique: false });
+                        }
+                    };
+                });
+            }
+            
+            // 항목 추가
+            async addEntry(entry) {
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([this.storeName], 'readwrite');
+                    const store = transaction.objectStore(this.storeName);
+                    
+                    // yearMonth 인덱스용 필드 추가
+                    entry.yearMonth = entry.date.substring(0, 7);
+                    entry.createdAt = new Date().toISOString();
+                    
+                    const request = store.add(entry);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+            
+            // 항목 수정
+            async updateEntry(entry) {
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([this.storeName], 'readwrite');
+                    const store = transaction.objectStore(this.storeName);
+                    
+                    entry.yearMonth = entry.date.substring(0, 7);
+                    entry.updatedAt = new Date().toISOString();
+                    
+                    const request = store.put(entry);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+            
+            // 항목 삭제
+            async deleteEntry(id) {
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([this.storeName], 'readwrite');
+                    const store = transaction.objectStore(this.storeName);
+                    
+                    const request = store.delete(id);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }
+            
+            // 단일 항목 조회
+            async getEntry(id) {
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([this.storeName], 'readonly');
+                    const store = transaction.objectStore(this.storeName);
+                    
+                    const request = store.get(id);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+            
+            // 전체 항목 조회 (최신순)
+            async getAllEntries() {
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([this.storeName], 'readonly');
+                    const store = transaction.objectStore(this.storeName);
+                    
+                    const request = store.getAll();
+                    request.onsuccess = () => {
+                        const entries = request.result;
+                        // 날짜 기준 내림차순 정렬
+                        entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        resolve(entries);
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            }
+            
+            // 기간별 조회
+            async getEntriesByPeriod(startDate, endDate) {
+                const allEntries = await this.getAllEntries();
+                return allEntries.filter(entry => {
+                    return entry.date >= startDate && entry.date <= endDate;
+                }).sort((a, b) => new Date(a.date) - new Date(b.date));
+            }
+            
+            // 연도 목록 조회
+            async getYears() {
+                const entries = await this.getAllEntries();
+                const years = [...new Set(entries.map(e => e.date.substring(0, 4)))];
+                return years.sort((a, b) => b - a);
+            }
+        }
+        
+        // ============================================
+        // UI 관리 클래스
+        // ============================================
+        class UIManager {
+            constructor() {
+                this.currentTab = 'input';
+            }
+            
+            // 탭 전환
+            switchTab(tabName) {
+                // 탭 버튼 활성화 상태 변경
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.tab === tabName);
+                });
+                
+                // 탭 컨텐츠 표시 상태 변경
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.toggle('active', content.id === tabName);
+                });
+                
+                this.currentTab = tabName;
+            }
+            
+            // 숫자 포맷팅 (천단위 콤마)
+            formatNumber(num) {
+                return new Intl.NumberFormat('ko-KR').format(num || 0);
+            }
+            
+            // 토스트 메시지 표시
+            showToast(message, duration = 2000) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, duration);
+            }
+            
+            // 날짜 포맷팅
+            formatDate(dateStr) {
+                const date = new Date(dateStr);
+                return `${date.getMonth() + 1}/${date.getDate()}`;
+            }
+            
+            // 전체 날짜 포맷팅
+            formatFullDate(dateStr) {
+                const date = new Date(dateStr);
+                return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+            }
+        }
+        
+        // ============================================
+        // 보고서 관리 클래스
+        // ============================================
+        class ReportManager {
+            constructor(db, ui) {
+                this.db = db;
+                this.ui = ui;
+            }
+            
+            // 기간 문자열 생성
+            getPeriodString(year, period) {
+                if (!year || !period) return '';
+                
+                const periodMap = {
+                    'q1': '1분기 (1-3월)',
+                    'q2': '2분기 (4-6월)',
+                    'q3': '3분기 (7-9월)',
+                    'q4': '4분기 (10-12월)',
+                    'h1': '상반기 (1-6월)',
+                    'h2': '하반기 (7-12월)'
+                };
+                
+                if (periodMap[period]) {
+                    return `${year}년 ${periodMap[period]}`;
+                }
+                
+                return `${year}년 ${period}월`;
+            }
+            
+            // 기간에 해당하는 날짜 범위 계산
+            getDateRange(year, period) {
+                const y = parseInt(year);
+                let startMonth, endMonth;
+                
+                if (period === 'q1') {
+                    startMonth = 1; endMonth = 3;
+                } else if (period === 'q2') {
+                    startMonth = 4; endMonth = 6;
+                } else if (period === 'q3') {
+                    startMonth = 7; endMonth = 9;
+                } else if (period === 'q4') {
+                    startMonth = 10; endMonth = 12;
+                } else if (period === 'h1') {
+                    startMonth = 1; endMonth = 6;
+                } else if (period === 'h2') {
+                    startMonth = 7; endMonth = 12;
+                } else {
+                    const m = parseInt(period);
+                    startMonth = m; endMonth = m;
+                }
+                
+                const startDate = `${y}-${String(startMonth).padStart(2, '0')}-01`;
+                const endDate = new Date(y, endMonth, 0);
+                const endDateStr = `${y}-${String(endMonth).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+                
+                return { startDate, endDate: endDateStr };
+            }
+            
+            // 보고서 HTML 생성
+            generateReportHTML(title, periodStr, entries, totals) {
+                let rowsHTML = '';
+                let runningBalance = 0;
+                
+                entries.forEach((entry, index) => {
+                    runningBalance += (entry.income || 0) - (entry.expense || 0);
+                    rowsHTML += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${this.ui.formatFullDate(entry.date)}</td>
+                            <td class="text-left">${entry.description}</td>
+                            <td class="text-right">${entry.income ? this.ui.formatNumber(entry.income) : ''}</td>
+                            <td class="text-right">${entry.expense ? this.ui.formatNumber(entry.expense) : ''}</td>
+                            <td class="text-right">${this.ui.formatNumber(runningBalance)}</td>
+                            <td class="text-left">${entry.note || ''}</td>
+                        </tr>
+                    `;
+                });
+                
+                // 빈 행인 경우
+                if (entries.length === 0) {
+                    rowsHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888;">데이터가 없습니다</td></tr>';
+                }
+                
+                return `
+                    <div class="print-header">
+                        <h2>${title}</h2>
+                        <div class="period">${periodStr}</div>
+                        <div style="font-size: 0.85rem; color: #888; margin-top: 8px;">
+                            출력일: ${new Date().toLocaleDateString('ko-KR')}
+                        </div>
+                    </div>
+                    
+                    <table class="print-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px">번호</th>
+                                <th style="width:90px">날짜</th>
+                                <th>내용</th>
+                                <th style="width:90px">수입</th>
+                                <th style="width:90px">지출</th>
+                                <th style="width:90px">잔액</th>
+                                <th style="width:100px">비고</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHTML}
+                        </tbody>
+                        <tfoot>
+                            <tr style="font-weight:bold; background:#f8f9fa;">
+                                <td colspan="3" style="text-align:right">합계</td>
+                                <td class="text-right">${this.ui.formatNumber(totals.income)}</td>
+                                <td class="text-right">${this.ui.formatNumber(totals.expense)}</td>
+                                <td class="text-right">${this.ui.formatNumber(totals.balance)}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    
+                    <div class="print-summary">
+                        <div>
+                            <span class="label">총 수입:</span>
+                            <span style="color:#2196F3">${this.ui.formatNumber(totals.income)}원</span>
+                        </div>
+                        <div>
+                            <span class="label">총 지출:</span>
+                            <span style="color:#f44336">${this.ui.formatNumber(totals.expense)}원</span>
+                        </div>
+                        <div>
+                            <span class="label">잔액:</span>
+                            <span style="color:#4CAF50">${this.ui.formatNumber(totals.balance)}원</span>
+                        </div>
+                    </div>
+                    
+                    <div class="approval-section">
+                        <table class="approval-table">
+                            <thead>
+                                <tr>
+                                    <th>총무</th>
+                                    <th>회장</th>
+                                    <th>감사</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+        }
+        
+        // ============================================
+        // 엑셀 출력 클래스
+        // ============================================
+        class ExcelExporter {
+            constructor(ui) {
+                this.ui = ui;
+            }
+            
+            // 엑셀 파일 생성 및 다운로드
+            export(title, periodStr, entries, totals) {
+                // 워크북 생성
+                const wb = XLSX.utils.book_new();
+                
+                // 데이터 배열 생성
+                const data = [];
+                
+                // 제목 행
+                data.push([title]);
+                data.push([periodStr]);
+                data.push([`출력일: ${new Date().toLocaleDateString('ko-KR')}`]);
+                data.push([]);
+                
+                // 헤더 행
+                data.push(['번호', '날짜', '내용', '수입', '지출', '잔액', '비고']);
+                
+                // 데이터 행
+                let runningBalance = 0;
+                entries.forEach((entry, index) => {
+                    runningBalance += (entry.income || 0) - (entry.expense || 0);
+                    data.push([
+                        index + 1,
+                        entry.date,
+                        entry.description,
+                        entry.income || '',
+                        entry.expense || '',
+                        runningBalance,
+                        entry.note || ''
+                    ]);
+                });
+                
+                // 합계 행
+                data.push([]);
+                data.push(['', '', '합계', totals.income, totals.expense, totals.balance, '']);
+                
+                // 빈 행
+                data.push([]);
+                data.push([]);
+                
+                // 결재란
+                data.push(['', '', '', '', '총무', '회장', '감사']);
+                data.push(['', '', '', '', '', '', '']);
+                
+                // 워크시트 생성
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                
+                // 열 너비 설정
+                ws['!cols'] = [
+                    { wch: 6 },   // 번호
+                    { wch: 12 },  // 날짜
+                    { wch: 30 },  // 내용
+                    { wch: 12 },  // 수입
+                    { wch: 12 },  // 지출
+                    { wch: 12 },  // 잔액
+                    { wch: 15 }   // 비고
+                ];
+                
+                // 워크시트 추가
+                XLSX.utils.book_append_sheet(wb, ws, '회계장부');
+                
+                // 파일 다운로드
+                const fileName = `${title}_${periodStr.replace(/[^0-9가-힣]/g, '_')}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                this.ui.showToast('엑셀 파일이 저장되었습니다');
+            }
+        }
+        
+        // ============================================
+        // 이미지 출력 클래스
+        // ============================================
+        class ImageExporter {
+            constructor(ui) {
+                this.ui = ui;
+            }
+            
+            // 이미지 파일 생성 및 다운로드
+            async export(element, fileName) {
+                try {
+                    // A4 비율로 캔버스 생성
+                    const canvas = await html2canvas(element, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: '#ffffff'
+                    });
+                    
+                    // 이미지 다운로드
+                    const link = document.createElement('a');
+                    link.download = `${fileName}.jpg`;
+                    link.href = canvas.toDataURL('image/jpeg', 0.95);
+                    link.click();
+                    
+                    this.ui.showToast('이미지 파일이 저장되었습니다');
+                } catch (error) {
+                    console.error('이미지 생성 오류:', error);
+                    this.ui.showToast('이미지 생성에 실패했습니다');
+                }
+            }
+        }
+        
+        // ============================================
+        // 앱 초기화 및 이벤트 핸들러
+        // ============================================
+        
+        // 전역 인스턴스
+        let db, ui, reportManager, excelExporter, imageExporter;
+        let deleteTargetId = null;
+        let currentReportData = null;
+        
+        // 앱 초기화
+        async function initApp() {
+            // 인스턴스 생성
+            db = new AccountingDB();
+            ui = new UIManager();
+            
+            // 데이터베이스 초기화
+            await db.init();
+            
+            reportManager = new ReportManager(db, ui);
+            excelExporter = new ExcelExporter(ui);
+            imageExporter = new ImageExporter(ui);
+            
+            // 현재 날짜 표시
+            const today = new Date();
+            document.getElementById('currentDate').textContent = 
+                `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
+            
+            // 입력 날짜 기본값 설정
+            document.getElementById('entryDate').value = today.toISOString().split('T')[0];
+            
+            // 연도 드롭다운 초기화
+            await initYearDropdowns();
+            
+            // 데이터 로드 및 표시
+            await refreshData();
+            
+            // 이벤트 리스너 설정
+            setupEventListeners();
+            
+            // Service Worker 등록 (PWA) - 실제 서버 환경에서만 동작
+            // claudeusercontent.com 등 미리보기 환경에서는 자동으로 건너뜀
+            if ('serviceWorker' in navigator && 
+                !location.hostname.includes('claudeusercontent') &&
+                location.protocol !== 'file:') {
+                navigator.serviceWorker.register('sw.js').catch(() => {
+                    // Service Worker 미지원 환경 - 앱은 정상 동작함
+                });
+            }
+        }
+        
+        // 연도 드롭다운 초기화
+        async function initYearDropdowns() {
+            const years = await db.getYears();
+            const currentYear = new Date().getFullYear();
+            
+            // 현재 연도가 없으면 추가
+            if (!years.includes(String(currentYear))) {
+                years.unshift(String(currentYear));
+            }
+            
+            // 3년 전까지 추가
+            for (let i = 1; i <= 3; i++) {
+                const y = String(currentYear - i);
+                if (!years.includes(y)) {
+                    years.push(y);
+                }
+            }
+            
+            years.sort((a, b) => b - a);
+            
+            const yearHTML = years.map(y => `<option value="${y}">${y}년</option>`).join('');
+            
+            document.getElementById('filterYear').innerHTML = '<option value="">연도 선택</option>' + yearHTML;
+            document.getElementById('reportYear').innerHTML = '<option value="">연도</option>' + yearHTML;
+            
+            // 현재 연도 기본 선택
+            document.getElementById('filterYear').value = String(currentYear);
+            document.getElementById('reportYear').value = String(currentYear);
+        }
+        
+        // 이벤트 리스너 설정
+        function setupEventListeners() {
+            // 탭 전환
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    ui.switchTab(btn.dataset.tab);
+                });
+            });
+            
+            // 폼 제출
+            document.getElementById('entryForm').addEventListener('submit', handleFormSubmit);
+            
+            // 편집 취소
+            document.getElementById('cancelEdit').addEventListener('click', cancelEdit);
+            
+            // 삭제 확인
+            document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
+        }
+        
+        // 데이터 새로고침
+        async function refreshData() {
+            const entries = await db.getAllEntries();
+            
+            // 요약 계산
+            let totalIncome = 0;
+            let totalExpense = 0;
+            
+            entries.forEach(entry => {
+                totalIncome += entry.income || 0;
+                totalExpense += entry.expense || 0;
+            });
+            
+            // 요약 표시
+            document.getElementById('totalIncome').textContent = ui.formatNumber(totalIncome);
+            document.getElementById('totalExpense').textContent = ui.formatNumber(totalExpense);
+            document.getElementById('totalBalance').textContent = ui.formatNumber(totalIncome - totalExpense);
+            
+            // 최근 10개 항목 표시
+            displayRecentEntries(entries.slice(0, 10));
+        }
+        
+        // 최근 항목 표시
+        function displayRecentEntries(entries) {
+            const tbody = document.getElementById('recentTableBody');
+            
+            if (entries.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align:center;padding:30px;color:#888;">
+                            등록된 데이터가 없습니다
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = entries.map(entry => `
+                <tr>
+                    <td>${ui.formatDate(entry.date)}</td>
+                    <td>${entry.description}</td>
+                    <td class="amount-income number">${entry.income ? ui.formatNumber(entry.income) : '-'}</td>
+                    <td class="amount-expense number">${entry.expense ? ui.formatNumber(entry.expense) : '-'}</td>
+                    <td>${entry.note || '-'}</td>
+                    <td class="actions">
+                        <button class="btn btn-outline" onclick="editEntry(${entry.id})">수정</button>
+                        <button class="btn btn-danger" onclick="showDeleteModal(${entry.id})">삭제</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // 폼 제출 처리
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            const editId = document.getElementById('editId').value;
+            const entry = {
+                date: document.getElementById('entryDate').value,
+                description: document.getElementById('description').value,
+                income: parseInt(document.getElementById('income').value) || 0,
+                expense: parseInt(document.getElementById('expense').value) || 0,
+                note: document.getElementById('note').value
+            };
+            
+            // 수입/지출 둘 다 없으면 경고
+            if (entry.income === 0 && entry.expense === 0) {
+                ui.showToast('수입 또는 지출을 입력해주세요');
+                return;
+            }
+            
+            try {
+                if (editId) {
+                    // 수정 모드
+                    entry.id = parseInt(editId);
+                    await db.updateEntry(entry);
+                    ui.showToast('수정되었습니다');
+                } else {
+                    // 추가 모드
+                    await db.addEntry(entry);
+                    ui.showToast('저장되었습니다');
+                }
+                
+                // 폼 초기화
+                resetForm();
+                
+                // 데이터 새로고침
+                await refreshData();
+                await initYearDropdowns();
+                
+            } catch (error) {
+                console.error('저장 오류:', error);
+                ui.showToast('저장에 실패했습니다');
+            }
+        }
+        
+        // 폼 초기화
+        function resetForm() {
+            document.getElementById('editId').value = '';
+            document.getElementById('entryForm').reset();
+            document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('submitBtnText').textContent = '저장';
+            document.getElementById('cancelEdit').style.display = 'none';
+        }
+        
+        // 항목 수정
+        async function editEntry(id) {
+            const entry = await db.getEntry(id);
+            if (!entry) return;
+            
+            document.getElementById('editId').value = entry.id;
+            document.getElementById('entryDate').value = entry.date;
+            document.getElementById('description').value = entry.description;
+            document.getElementById('income').value = entry.income || '';
+            document.getElementById('expense').value = entry.expense || '';
+            document.getElementById('note').value = entry.note || '';
+            
+            document.getElementById('submitBtnText').textContent = '수정';
+            document.getElementById('cancelEdit').style.display = 'block';
+            
+            // 입력 탭으로 전환
+            ui.switchTab('input');
+            
+            // 폼으로 스크롤
+            document.getElementById('entryForm').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 편집 취소
+        function cancelEdit() {
+            resetForm();
+            ui.showToast('수정이 취소되었습니다');
+        }
+        
+        // 삭제 모달 표시
+        function showDeleteModal(id) {
+            deleteTargetId = id;
+            document.getElementById('deleteModal').classList.add('show');
+        }
+        
+        // 삭제 모달 닫기
+        function closeDeleteModal() {
+            deleteTargetId = null;
+            document.getElementById('deleteModal').classList.remove('show');
+        }
+        
+        // 삭제 확인
+        async function confirmDelete() {
+            if (deleteTargetId === null) return;
+            
+            try {
+                await db.deleteEntry(deleteTargetId);
+                ui.showToast('삭제되었습니다');
+                closeDeleteModal();
+                await refreshData();
+            } catch (error) {
+                console.error('삭제 오류:', error);
+                ui.showToast('삭제에 실패했습니다');
+            }
+        }
+        
+        // 기간별 검색
+        async function searchByPeriod(type) {
+            const year = document.getElementById('filterYear').value;
+            const month = document.getElementById('filterMonth').value;
+            
+            if (!year) {
+                ui.showToast('연도를 선택해주세요');
+                return;
+            }
+            
+            let startDate, endDate, periodLabel;
+            const y = parseInt(year);
+            
+            if (type === 'month') {
+                if (!month) {
+                    ui.showToast('월을 선택해주세요');
+                    return;
+                }
+                const m = parseInt(month);
+                startDate = `${year}-${String(m).padStart(2, '0')}-01`;
+                const lastDay = new Date(y, m, 0).getDate();
+                endDate = `${year}-${String(m).padStart(2, '0')}-${lastDay}`;
+                periodLabel = `(${year}년 ${month}월)`;
+                
+            } else if (type === 'quarter') {
+                if (!month) {
+                    ui.showToast('월을 선택해주세요 (분기 기준)');
+                    return;
+                }
+                const m = parseInt(month);
+                const quarter = Math.ceil(m / 3);
+                const startMonth = (quarter - 1) * 3 + 1;
+                const endMonth = quarter * 3;
+                startDate = `${year}-${String(startMonth).padStart(2, '0')}-01`;
+                const lastDay = new Date(y, endMonth, 0).getDate();
+                endDate = `${year}-${String(endMonth).padStart(2, '0')}-${lastDay}`;
+                periodLabel = `(${year}년 ${quarter}분기)`;
+                
+            } else if (type === 'half') {
+                if (!month) {
+                    ui.showToast('월을 선택해주세요 (반기 기준)');
+                    return;
+                }
+                const m = parseInt(month);
+                const isFirstHalf = m <= 6;
+                startDate = isFirstHalf ? `${year}-01-01` : `${year}-07-01`;
+                endDate = isFirstHalf ? `${year}-06-30` : `${year}-12-31`;
+                periodLabel = `(${year}년 ${isFirstHalf ? '상반기' : '하반기'})`;
+            }
+            
+            await performSearch(startDate, endDate, periodLabel);
+        }
+        
+        // 전체 검색
+        async function searchAll() {
+            const year = document.getElementById('filterYear').value;
+            
+            if (!year) {
+                // 전체 데이터
+                const entries = await db.getAllEntries();
+                displaySearchResults(entries, '(전체)');
+            } else {
+                // 해당 연도 전체
+                const startDate = `${year}-01-01`;
+                const endDate = `${year}-12-31`;
+                await performSearch(startDate, endDate, `(${year}년 전체)`);
+            }
+        }
+        
+        // 검색 수행
+        async function performSearch(startDate, endDate, periodLabel) {
+            const entries = await db.getEntriesByPeriod(startDate, endDate);
+            displaySearchResults(entries, periodLabel);
+        }
+        
+        // 검색 결과 표시
+        function displaySearchResults(entries, periodLabel) {
+            document.getElementById('searchPeriodLabel').textContent = periodLabel;
+            document.getElementById('searchSummary').style.display = 'grid';
+            
+            // 합계 계산
+            let totalIncome = 0;
+            let totalExpense = 0;
+            
+            entries.forEach(entry => {
+                totalIncome += entry.income || 0;
+                totalExpense += entry.expense || 0;
+            });
+            
+            document.getElementById('searchIncome').textContent = ui.formatNumber(totalIncome);
+            document.getElementById('searchExpense').textContent = ui.formatNumber(totalExpense);
+            document.getElementById('searchBalance').textContent = ui.formatNumber(totalIncome - totalExpense);
+            
+            // 테이블 표시
+            const tbody = document.getElementById('searchTableBody');
+            
+            if (entries.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align:center;padding:30px;color:#888;">
+                            검색 결과가 없습니다
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = entries.map(entry => `
+                <tr>
+                    <td>${ui.formatFullDate(entry.date)}</td>
+                    <td>${entry.description}</td>
+                    <td class="amount-income number">${entry.income ? ui.formatNumber(entry.income) : '-'}</td>
+                    <td class="amount-expense number">${entry.expense ? ui.formatNumber(entry.expense) : '-'}</td>
+                    <td>${entry.note || '-'}</td>
+                </tr>
+            `).join('');
+        }
+        
+        // 보고서 생성
+        async function generateReport() {
+            const title = document.getElementById('reportTitle').value || '회계 보고서';
+            const year = document.getElementById('reportYear').value;
+            const period = document.getElementById('reportPeriod').value;
+            
+            if (!year || !period) {
+                ui.showToast('연도와 기간을 선택해주세요');
+                return;
+            }
+            
+            const periodStr = reportManager.getPeriodString(year, period);
+            const { startDate, endDate } = reportManager.getDateRange(year, period);
+            
+            const entries = await db.getEntriesByPeriod(startDate, endDate);
+            
+            // 합계 계산
+            let totalIncome = 0;
+            let totalExpense = 0;
+            
+            entries.forEach(entry => {
+                totalIncome += entry.income || 0;
+                totalExpense += entry.expense || 0;
+            });
+            
+            const totals = {
+                income: totalIncome,
+                expense: totalExpense,
+                balance: totalIncome - totalExpense
+            };
+            
+            // 현재 보고서 데이터 저장 (엑셀/이미지 출력용)
+            currentReportData = { title, periodStr, entries, totals };
+            
+            // 보고서 HTML 생성 및 표시
+            const reportHTML = reportManager.generateReportHTML(title, periodStr, entries, totals);
+            document.getElementById('printArea').innerHTML = reportHTML;
+            document.getElementById('printPreview').style.display = 'block';
+            
+            // 미리보기로 스크롤
+            document.getElementById('printPreview').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 엑셀 출력
+        function exportToExcel() {
+            if (!currentReportData) {
+                ui.showToast('먼저 보고서를 생성해주세요');
+                return;
+            }
+            
+            excelExporter.export(
+                currentReportData.title,
+                currentReportData.periodStr,
+                currentReportData.entries,
+                currentReportData.totals
+            );
+        }
+        
+        // 이미지 출력
+        async function exportToImage() {
+            if (!currentReportData) {
+                ui.showToast('먼저 보고서를 생성해주세요');
+                return;
+            }
+            
+            const printArea = document.getElementById('printArea');
+            const fileName = `${currentReportData.title}_${currentReportData.periodStr.replace(/[^0-9가-힣]/g, '_')}`;
+            
+            await imageExporter.export(printArea, fileName);
+        }
+        
+        // 앱 시작
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
