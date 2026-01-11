@@ -149,6 +149,88 @@
             border-color: #ffcc80;
         }
         
+        /* 설정 탭 - 회색 테마 */
+        .tab-btn[data-tab="settings"].active {
+            background: linear-gradient(135deg, #607D8B, #455A64);
+            border-color: #455A64;
+            box-shadow: 0 3px 8px rgba(96, 125, 139, 0.3);
+        }
+        
+        .tab-btn[data-tab="settings"]:hover:not(.active) {
+            background: #eceff1;
+            border-color: #b0bec5;
+        }
+        
+        .tab-header.settings-header {
+            background: linear-gradient(135deg, #607D8B, #455A64);
+        }
+        
+        /* 백업 정보 스타일 */
+        .backup-info {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+        }
+        
+        .backup-info .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .backup-info .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .backup-info .label {
+            color: #666;
+        }
+        
+        .backup-info .value {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .warning-box {
+            background: #fff3e0;
+            border: 1px solid #ffcc80;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            color: #e65100;
+        }
+        
+        .success-box {
+            background: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            color: #2e7d32;
+        }
+        
         /* 컨테이너 */
         .container {
             padding: 16px;
@@ -721,6 +803,10 @@
             <span class="tab-icon">📊</span>
             <span class="tab-label">보고서</span>
         </button>
+        <button class="tab-btn" data-tab="settings">
+            <span class="tab-icon">⚙️</span>
+            <span class="tab-label">설정</span>
+        </button>
     </nav>
     
     <!-- 입력 탭 -->
@@ -760,8 +846,27 @@
                     <input type="hidden" id="editId" value="">
                     
                     <div class="form-group">
-                        <label for="entryDate">입력날짜</label>
-                        <input type="date" id="entryDate" required>
+                        <label>입력날짜</label>
+                        <div style="display: flex; gap: 8px;">
+                            <select id="entryYear" required style="flex: 1.2;">
+                            </select>
+                            <select id="entryMonth" required style="flex: 1;">
+                                <option value="01">1월</option>
+                                <option value="02">2월</option>
+                                <option value="03">3월</option>
+                                <option value="04">4월</option>
+                                <option value="05">5월</option>
+                                <option value="06">6월</option>
+                                <option value="07">7월</option>
+                                <option value="08">8월</option>
+                                <option value="09">9월</option>
+                                <option value="10">10월</option>
+                                <option value="11">11월</option>
+                                <option value="12">12월</option>
+                            </select>
+                            <select id="entryDay" required style="flex: 1;">
+                            </select>
+                        </div>
                     </div>
                     
                     <div class="form-group">
@@ -976,6 +1081,97 @@
         </div>
     </div>
     
+    <!-- 설정 탭 -->
+    <div id="settings" class="tab-content">
+        <div class="container">
+            <!-- 탭 헤더 배너 -->
+            <div class="card" style="padding: 0; overflow: hidden;">
+                <div class="tab-header settings-header">
+                    <span class="header-icon">⚙️</span>
+                    <div class="header-title">설정 및 백업</div>
+                    <div class="header-desc">데이터 백업 및 복원</div>
+                </div>
+            </div>
+            
+            <!-- 데이터 현황 -->
+            <div class="card">
+                <div class="card-title">
+                    <span>📊</span> 데이터 현황
+                </div>
+                <div class="backup-info" id="dataStats">
+                    <div class="info-row">
+                        <span class="label">총 거래 건수</span>
+                        <span class="value" id="statsTotalCount">0건</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">총 수입</span>
+                        <span class="value" style="color:#2196F3" id="statsTotalIncome">0원</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">총 지출</span>
+                        <span class="value" style="color:#f44336" id="statsTotalExpense">0원</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">마지막 백업</span>
+                        <span class="value" id="statsLastBackup">없음</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 데이터 백업 (내보내기) -->
+            <div class="card">
+                <div class="card-title">
+                    <span>💾</span> 데이터 백업 (내보내기)
+                </div>
+                <p style="font-size: 0.9rem; color: #666; margin-bottom: 12px;">
+                    모든 데이터를 JSON 파일로 저장합니다.<br>
+                    저장된 파일을 구글 드라이브에 업로드하여 백업하세요.
+                </p>
+                <button class="btn btn-primary btn-block" onclick="exportBackup()">
+                    📥 백업 파일 다운로드
+                </button>
+                <div class="success-box" style="margin-top: 12px;">
+                    💡 <strong>구글 드라이브 백업 방법:</strong><br>
+                    1. 위 버튼으로 파일 다운로드<br>
+                    2. 구글 드라이브 앱 열기<br>
+                    3. (+) 버튼 → 업로드 → 다운로드한 파일 선택
+                </div>
+            </div>
+            
+            <!-- 데이터 복원 (가져오기) -->
+            <div class="card">
+                <div class="card-title">
+                    <span>📤</span> 데이터 복원 (가져오기)
+                </div>
+                <p style="font-size: 0.9rem; color: #666; margin-bottom: 12px;">
+                    백업 파일에서 데이터를 복원합니다.
+                </p>
+                <div class="file-input-wrapper">
+                    <button class="btn btn-success btn-block">
+                        📂 백업 파일 선택
+                    </button>
+                    <input type="file" id="restoreFile" accept=".json" onchange="handleRestoreFile(event)">
+                </div>
+                <div class="warning-box">
+                    ⚠️ <strong>주의:</strong> 복원하면 현재 데이터가 모두 삭제되고 백업 데이터로 교체됩니다.
+                </div>
+            </div>
+            
+            <!-- 데이터 초기화 -->
+            <div class="card">
+                <div class="card-title">
+                    <span>🗑️</span> 데이터 초기화
+                </div>
+                <p style="font-size: 0.9rem; color: #666; margin-bottom: 12px;">
+                    모든 데이터를 삭제하고 초기 상태로 되돌립니다.
+                </p>
+                <button class="btn btn-danger btn-block" onclick="showResetModal()">
+                    ⚠️ 모든 데이터 삭제
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- 삭제 확인 모달 -->
     <div class="modal" id="deleteModal">
         <div class="modal-content">
@@ -1011,6 +1207,48 @@
                 <button class="btn btn-warning" id="confirmShareBtn" style="min-width: 100px; background: #FEE500; color: #000;">
                     예
                 </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 데이터 초기화 확인 모달 -->
+    <div class="modal" id="resetModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ 데이터 초기화</h3>
+                <button class="modal-close" onclick="closeResetModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 16px;">🗑️</div>
+                <p style="font-size: 1.1rem; font-weight: 600; color: #f44336;">정말 모든 데이터를 삭제하시겠습니까?</p>
+                <p style="color: #888; font-size: 0.9rem; margin-top: 8px;">삭제된 데이터는 복구할 수 없습니다.<br>먼저 백업을 권장합니다.</p>
+            </div>
+            <div class="modal-footer" style="justify-content: center; gap: 12px;">
+                <button class="btn btn-outline" onclick="closeResetModal()" style="min-width: 100px;">취소</button>
+                <button class="btn btn-danger" onclick="confirmReset()" style="min-width: 100px;">삭제</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 데이터 복원 확인 모달 -->
+    <div class="modal" id="restoreModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📤 데이터 복원</h3>
+                <button class="modal-close" onclick="closeRestoreModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 1rem; font-weight: 600;">복원할 백업 정보:</p>
+                <div class="backup-info" id="restoreInfo" style="margin-top: 12px;">
+                    <!-- 동적으로 채워짐 -->
+                </div>
+                <div class="warning-box" style="margin-top: 12px;">
+                    ⚠️ 현재 데이터가 모두 삭제되고 백업 데이터로 교체됩니다.
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: center; gap: 12px;">
+                <button class="btn btn-outline" onclick="closeRestoreModal()" style="min-width: 100px;">취소</button>
+                <button class="btn btn-success" onclick="confirmRestore()" style="min-width: 100px;">복원</button>
             </div>
         </div>
     </div>
@@ -1144,6 +1382,47 @@
                 const entries = await this.getAllEntries();
                 const years = [...new Set(entries.map(e => e.date.substring(0, 4)))];
                 return years.sort((a, b) => b - a);
+            }
+            
+            // 모든 데이터 삭제 (초기화)
+            async clearAllData() {
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([this.storeName], 'readwrite');
+                    const store = transaction.objectStore(this.storeName);
+                    
+                    const request = store.clear();
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }
+            
+            // 여러 항목 일괄 추가 (복원용)
+            async addMultipleEntries(entries) {
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([this.storeName], 'readwrite');
+                    const store = transaction.objectStore(this.storeName);
+                    
+                    let addedCount = 0;
+                    
+                    entries.forEach(entry => {
+                        // id 제거 (새로 생성됨)
+                        delete entry.id;
+                        entry.yearMonth = entry.date.substring(0, 7);
+                        
+                        const request = store.add(entry);
+                        request.onsuccess = () => {
+                            addedCount++;
+                            if (addedCount === entries.length) {
+                                resolve(addedCount);
+                            }
+                        };
+                        request.onerror = () => reject(request.error);
+                    });
+                    
+                    if (entries.length === 0) {
+                        resolve(0);
+                    }
+                });
             }
         }
         
@@ -1551,14 +1830,17 @@
             document.getElementById('currentDate').textContent = 
                 `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
             
-            // 입력 날짜 기본값 설정
-            document.getElementById('entryDate').value = today.toISOString().split('T')[0];
+            // 입력 날짜 드롭다운 초기화
+            initDateDropdowns(today.getFullYear(), today.getMonth() + 1, today.getDate());
             
             // 연도 드롭다운 초기화
             await initYearDropdowns();
             
             // 데이터 로드 및 표시
             await refreshData();
+            
+            // 설정 탭 데이터 현황 업데이트
+            await updateDataStats();
             
             // 이벤트 리스너 설정
             setupEventListeners();
@@ -1604,12 +1886,82 @@
             document.getElementById('reportYear').value = String(currentYear);
         }
         
+        // 입력 날짜 드롭다운 초기화
+        function initDateDropdowns(year, month, day) {
+            const yearSelect = document.getElementById('entryYear');
+            const monthSelect = document.getElementById('entryMonth');
+            const daySelect = document.getElementById('entryDay');
+            
+            const currentYear = new Date().getFullYear();
+            
+            // 연도 옵션 (현재년도 기준 -5년 ~ +1년)
+            yearSelect.innerHTML = '';
+            for (let y = currentYear + 1; y >= currentYear - 5; y--) {
+                yearSelect.innerHTML += `<option value="${y}">${y}년</option>`;
+            }
+            yearSelect.value = year;
+            
+            // 월 선택
+            monthSelect.value = String(month).padStart(2, '0');
+            
+            // 일 옵션 업데이트
+            updateDayOptions();
+            daySelect.value = String(day).padStart(2, '0');
+            
+            // 연도/월 변경 시 일 옵션 업데이트
+            yearSelect.addEventListener('change', updateDayOptions);
+            monthSelect.addEventListener('change', updateDayOptions);
+        }
+        
+        // 일 옵션 업데이트 (월별 일수 반영)
+        function updateDayOptions() {
+            const year = parseInt(document.getElementById('entryYear').value);
+            const month = parseInt(document.getElementById('entryMonth').value);
+            const daySelect = document.getElementById('entryDay');
+            const currentDay = daySelect.value;
+            
+            // 해당 월의 마지막 일 계산
+            const lastDay = new Date(year, month, 0).getDate();
+            
+            daySelect.innerHTML = '';
+            for (let d = 1; d <= lastDay; d++) {
+                daySelect.innerHTML += `<option value="${String(d).padStart(2, '0')}">${d}일</option>`;
+            }
+            
+            // 기존 선택일이 유효하면 유지
+            if (parseInt(currentDay) <= lastDay) {
+                daySelect.value = currentDay;
+            }
+        }
+        
+        // 선택된 날짜 가져오기 (YYYY-MM-DD 형식)
+        function getSelectedDate() {
+            const year = document.getElementById('entryYear').value;
+            const month = document.getElementById('entryMonth').value;
+            const day = document.getElementById('entryDay').value;
+            return `${year}-${month}-${day}`;
+        }
+        
+        // 날짜 드롭다운 설정
+        function setDateDropdowns(dateStr) {
+            const parts = dateStr.split('-');
+            document.getElementById('entryYear').value = parts[0];
+            document.getElementById('entryMonth').value = parts[1];
+            updateDayOptions();
+            document.getElementById('entryDay').value = parts[2];
+        }
+        
         // 이벤트 리스너 설정
         function setupEventListeners() {
             // 탭 전환
             document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', async () => {
                     ui.switchTab(btn.dataset.tab);
+                    
+                    // 설정 탭으로 전환 시 데이터 현황 업데이트
+                    if (btn.dataset.tab === 'settings') {
+                        await updateDataStats();
+                    }
                 });
             });
             
@@ -1684,7 +2036,7 @@
             
             const editId = document.getElementById('editId').value;
             const entry = {
-                date: document.getElementById('entryDate').value,
+                date: getSelectedDate(),
                 description: document.getElementById('description').value,
                 income: parseInt(document.getElementById('income').value) || 0,
                 expense: parseInt(document.getElementById('expense').value) || 0,
@@ -1726,7 +2078,14 @@
         function resetForm() {
             document.getElementById('editId').value = '';
             document.getElementById('entryForm').reset();
-            document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+            
+            // 오늘 날짜로 드롭다운 설정
+            const today = new Date();
+            document.getElementById('entryYear').value = today.getFullYear();
+            document.getElementById('entryMonth').value = String(today.getMonth() + 1).padStart(2, '0');
+            updateDayOptions();
+            document.getElementById('entryDay').value = String(today.getDate()).padStart(2, '0');
+            
             document.getElementById('submitBtnText').textContent = '저장';
             document.getElementById('cancelEdit').style.display = 'none';
         }
@@ -1737,7 +2096,7 @@
             if (!entry) return;
             
             document.getElementById('editId').value = entry.id;
-            document.getElementById('entryDate').value = entry.date;
+            setDateDropdowns(entry.date);
             document.getElementById('description').value = entry.description;
             document.getElementById('income').value = entry.income || '';
             document.getElementById('expense').value = entry.expense || '';
@@ -1995,6 +2354,204 @@
         async function confirmShare() {
             closeShareModal();
             await imageExporter.shareToKakao();
+        }
+        
+        // ============================================
+        // 백업/복원 기능
+        // ============================================
+        
+        let pendingRestoreData = null;  // 복원 대기 중인 데이터
+        
+        // 설정 탭 데이터 현황 업데이트
+        async function updateDataStats() {
+            const entries = await db.getAllEntries();
+            
+            let totalIncome = 0;
+            let totalExpense = 0;
+            
+            entries.forEach(entry => {
+                totalIncome += entry.income || 0;
+                totalExpense += entry.expense || 0;
+            });
+            
+            document.getElementById('statsTotalCount').textContent = `${entries.length}건`;
+            document.getElementById('statsTotalIncome').textContent = `${ui.formatNumber(totalIncome)}원`;
+            document.getElementById('statsTotalExpense').textContent = `${ui.formatNumber(totalExpense)}원`;
+            
+            // 마지막 백업 시간 (localStorage에 저장)
+            const lastBackup = localStorage.getItem('lastBackupTime');
+            document.getElementById('statsLastBackup').textContent = lastBackup || '없음';
+        }
+        
+        // 백업 파일 내보내기
+        async function exportBackup() {
+            try {
+                const entries = await db.getAllEntries();
+                
+                // 백업 데이터 구조
+                const backupData = {
+                    version: '1.0',
+                    appName: '통친회 회계장부',
+                    exportDate: new Date().toISOString(),
+                    exportDateKR: new Date().toLocaleString('ko-KR'),
+                    totalCount: entries.length,
+                    data: entries
+                };
+                
+                // JSON 파일 생성
+                const jsonStr = JSON.stringify(backupData, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                
+                // 파일 다운로드
+                const fileName = `통친회_회계장부_백업_${new Date().toISOString().slice(0, 10)}.json`;
+                const link = document.createElement('a');
+                link.download = fileName;
+                link.href = URL.createObjectURL(blob);
+                link.click();
+                URL.revokeObjectURL(link.href);
+                
+                // 마지막 백업 시간 저장
+                const now = new Date().toLocaleString('ko-KR');
+                localStorage.setItem('lastBackupTime', now);
+                document.getElementById('statsLastBackup').textContent = now;
+                
+                ui.showToast(`${entries.length}건의 데이터가 백업되었습니다`);
+                
+            } catch (error) {
+                console.error('백업 오류:', error);
+                ui.showToast('백업에 실패했습니다');
+            }
+        }
+        
+        // 복원 파일 선택 처리
+        function handleRestoreFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    // 유효성 검사
+                    if (!data.data || !Array.isArray(data.data)) {
+                        ui.showToast('유효하지 않은 백업 파일입니다');
+                        return;
+                    }
+                    
+                    // 복원 정보 표시
+                    pendingRestoreData = data;
+                    
+                    let totalIncome = 0;
+                    let totalExpense = 0;
+                    data.data.forEach(entry => {
+                        totalIncome += entry.income || 0;
+                        totalExpense += entry.expense || 0;
+                    });
+                    
+                    document.getElementById('restoreInfo').innerHTML = `
+                        <div class="info-row">
+                            <span class="label">백업 일시</span>
+                            <span class="value">${data.exportDateKR || data.exportDate}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">데이터 건수</span>
+                            <span class="value">${data.data.length}건</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">총 수입</span>
+                            <span class="value" style="color:#2196F3">${ui.formatNumber(totalIncome)}원</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">총 지출</span>
+                            <span class="value" style="color:#f44336">${ui.formatNumber(totalExpense)}원</span>
+                        </div>
+                    `;
+                    
+                    showRestoreModal();
+                    
+                } catch (error) {
+                    console.error('파일 읽기 오류:', error);
+                    ui.showToast('파일을 읽는데 실패했습니다');
+                }
+            };
+            reader.readAsText(file);
+            
+            // 파일 입력 초기화 (같은 파일 다시 선택 가능하도록)
+            event.target.value = '';
+        }
+        
+        // 복원 모달 표시
+        function showRestoreModal() {
+            document.getElementById('restoreModal').classList.add('show');
+        }
+        
+        // 복원 모달 닫기
+        function closeRestoreModal() {
+            document.getElementById('restoreModal').classList.remove('show');
+            pendingRestoreData = null;
+        }
+        
+        // 복원 실행
+        async function confirmRestore() {
+            if (!pendingRestoreData) return;
+            
+            try {
+                // 기존 데이터 삭제
+                await db.clearAllData();
+                
+                // 새 데이터 추가
+                const count = await db.addMultipleEntries(pendingRestoreData.data);
+                
+                closeRestoreModal();
+                
+                // 화면 새로고침
+                await refreshData();
+                await initYearDropdowns();
+                await updateDataStats();
+                
+                ui.showToast(`${count}건의 데이터가 복원되었습니다`);
+                
+                // 입력 탭으로 이동
+                ui.switchTab('input');
+                
+            } catch (error) {
+                console.error('복원 오류:', error);
+                ui.showToast('복원에 실패했습니다');
+            }
+        }
+        
+        // 초기화 모달 표시
+        function showResetModal() {
+            document.getElementById('resetModal').classList.add('show');
+        }
+        
+        // 초기화 모달 닫기
+        function closeResetModal() {
+            document.getElementById('resetModal').classList.remove('show');
+        }
+        
+        // 초기화 실행
+        async function confirmReset() {
+            try {
+                await db.clearAllData();
+                
+                closeResetModal();
+                
+                // 화면 새로고침
+                await refreshData();
+                await initYearDropdowns();
+                await updateDataStats();
+                
+                ui.showToast('모든 데이터가 삭제되었습니다');
+                
+                // 입력 탭으로 이동
+                ui.switchTab('input');
+                
+            } catch (error) {
+                console.error('초기화 오류:', error);
+                ui.showToast('초기화에 실패했습니다');
+            }
         }
         
         // 앱 시작
