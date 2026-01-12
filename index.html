@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#2196F3">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>통친회 회계장부 관리</title>
+    <title>통장 협의회 회계장부 관리</title>
     <link rel="manifest" href="manifest.json">
     
     <!-- SheetJS for Excel export -->
@@ -795,7 +795,7 @@
 <body>
     <!-- 헤더 -->
     <header class="header">
-        <h1>📒 통친회 회계장부 관리</h1>
+        <h1>📒 통장 협의회 회계장부 관리</h1>
         <div class="subtitle" id="currentDate"></div>
     </header>
     
@@ -1040,7 +1040,7 @@
                 </div>
                 <div class="form-group">
                     <label>보고서 제목</label>
-                    <input type="text" id="reportTitle" value="통친회 회계 보고서" placeholder="보고서 제목">
+                    <input type="text" id="reportTitle" value="통장 협의회 회계 보고서" placeholder="보고서 제목">
                 </div>
                 <div class="filter-section">
                     <select id="reportYear">
@@ -2134,7 +2134,7 @@
                     }
                     
                     await navigator.share({
-                        title: '통친회 회계 보고서',
+                        title: '통장 협의회 회계 보고서',
                         text: `회계 보고서 이미지입니다. (총 ${files.length}장)`,
                         files: files
                     });
@@ -2747,7 +2747,7 @@
                 // 백업 데이터 구조
                 const backupData = {
                     version: '1.0',
-                    appName: '통친회 회계장부',
+                    appName: '통장 협의회 회계장부',
                     exportDate: new Date().toISOString(),
                     exportDateKR: new Date().toLocaleString('ko-KR'),
                     totalCount: entries.length,
@@ -2759,7 +2759,7 @@
                 const blob = new Blob([jsonStr], { type: 'application/json' });
                 
                 // 파일 다운로드
-                const fileName = `통친회_회계장부_백업_${new Date().toISOString().slice(0, 10)}.json`;
+                const fileName = `통장 협의회_회계장부_백업_${new Date().toISOString().slice(0, 10)}.json`;
                 const link = document.createElement('a');
                 link.download = fileName;
                 link.href = URL.createObjectURL(blob);
