@@ -1099,7 +1099,7 @@
             <div class="card" style="padding: 0; overflow: hidden;">
                 <div class="tab-header settings-header">
                     <span class="header-icon">⚙️</span>
-                    <div class="header-title">설정 및 백업</div>
+                    <div class="header-title" id="settingsTitle">설정 및 백업</div>
                     <div class="header-desc">데이터 백업 및 복원</div>
                 </div>
             </div>
@@ -2170,6 +2170,9 @@
         let db, ui, reportManager, excelExporter, imageExporter;
         let deleteTargetId = null;
         let currentReportData = null;
+
+        // 앱 버전 (배포 시 sw.js의 CACHE_NAME과 함께 갱신할 것)
+        const APP_VERSION = 'v11';
         
         // 앱 초기화
         async function initApp() {
@@ -2186,8 +2189,11 @@
             
             // 현재 날짜 표시
             const today = new Date();
-            document.getElementById('currentDate').textContent = 
+            document.getElementById('currentDate').textContent =
                 `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
+
+            // 설정 탭 제목에 현재 버전 표시
+            document.getElementById('settingsTitle').textContent = `설정 및 백업 (${APP_VERSION})`;
             
             // 입력 날짜 드롭다운 초기화
             initDateDropdowns(today.getFullYear(), today.getMonth() + 1, today.getDate());
