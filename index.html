@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#2196F3">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>통장 협의회 회계장부 관리</title>
+    <title>통친회 회계장부 관리</title>
     <link rel="manifest" href="manifest.json">
     
     <!-- SheetJS for Excel export -->
@@ -795,7 +795,7 @@
 <body>
     <!-- 헤더 -->
     <header class="header">
-        <h1>📒 통장 협의회 회계장부 관리</h1>
+        <h1>📒 통친회 회계장부 관리</h1>
         <div class="subtitle" id="currentDate"></div>
     </header>
     
@@ -1040,7 +1040,7 @@
                 </div>
                 <div class="form-group">
                     <label>보고서 제목</label>
-                    <input type="text" id="reportTitle" value="통장 협의회 회계 보고서" placeholder="보고서 제목">
+                    <input type="text" id="reportTitle" value="통친회 회계 보고서" placeholder="보고서 제목">
                 </div>
                 <div class="filter-section">
                     <select id="reportYear">
@@ -1879,23 +1879,31 @@
                     
                     this.lastImageBlobs = [];
                     this.lastFileNames = [];
-                    
+
+                    // 페이지를 가로지르며 누적되는 잔액 (2페이지 이후의 시작 잔액 계산용)
+                    let runningBalance = 0;
+
                     // 각 페이지별 이미지 생성
                     for (let pageNum = 0; pageNum < totalPages; pageNum++) {
                         const isFirstPage = (pageNum === 0);
                         const isLastPage = (pageNum === totalPages - 1);
-                        
-                        // 페이지 HTML 생성
+
+                        // 페이지 HTML 생성 (이전 페이지까지의 누적 잔액을 시작 잔액으로 전달)
                         const pageHTML = this.generatePageHTML(
                             pages[pageNum],
                             title,
                             periodStr,
-                            totals,
+                            { ...totals, previousBalance: runningBalance },
                             pageNum + 1,
                             totalPages,
                             isFirstPage,
                             isLastPage
                         );
+
+                        // 이 페이지의 수입/지출 변동분을 누적하여 다음 페이지의 시작 잔액으로 사용
+                        pages[pageNum].forEach(entry => {
+                            runningBalance += (entry.income || 0) - (entry.expense || 0);
+                        });
                         
                         // 임시 요소 생성
                         const tempDiv = document.createElement('div');
@@ -2004,13 +2012,9 @@
             
             // 페이지별 HTML 생성
             generatePageHTML(entries, title, periodStr, totals, pageNum, totalPages, isFirstPage, isLastPage) {
-                let runningBalance = 0;
-                
-                // 이전 페이지까지의 잔액 계산
-                if (!isFirstPage && totals.previousBalance !== undefined) {
-                    runningBalance = totals.previousBalance;
-                }
-                
+                // 이전 페이지까지의 누적 잔액을 시작 잔액으로 사용 (1페이지 또는 미전달 시 0)
+                let runningBalance = totals.previousBalance ?? 0;
+
                 let rowsHTML = '';
                 const startIndex = isFirstPage ? 0 : (this.ROWS_PER_PAGE_FIRST + (pageNum - 2) * this.ROWS_PER_PAGE_OTHER);
                 
@@ -2134,7 +2138,7 @@
                     }
                     
                     await navigator.share({
-                        title: '통장 협의회 회계 보고서',
+                        title: '통친회 회계 보고서',
                         text: `회계 보고서 이미지입니다. (총 ${files.length}장)`,
                         files: files
                     });
@@ -2747,7 +2751,7 @@
                 // 백업 데이터 구조
                 const backupData = {
                     version: '1.0',
-                    appName: '통장 협의회 회계장부',
+                    appName: '통친회 회계장부',
                     exportDate: new Date().toISOString(),
                     exportDateKR: new Date().toLocaleString('ko-KR'),
                     totalCount: entries.length,
@@ -2759,7 +2763,7 @@
                 const blob = new Blob([jsonStr], { type: 'application/json' });
                 
                 // 파일 다운로드
-                const fileName = `통장 협의회_회계장부_백업_${new Date().toISOString().slice(0, 10)}.json`;
+                const fileName = `통친회_회계장부_백업_${new Date().toISOString().slice(0, 10)}.json`;
                 const link = document.createElement('a');
                 link.download = fileName;
                 link.href = URL.createObjectURL(blob);
