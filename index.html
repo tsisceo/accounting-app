@@ -1621,8 +1621,8 @@
                             <td>${index + 1}</td>
                             <td>${this.ui.formatFullDate(entry.date)}</td>
                             <td class="text-left">${entry.description}</td>
-                            <td class="text-right">${entry.income ? this.ui.formatNumber(entry.income) : ''}</td>
-                            <td class="text-right">${entry.expense ? this.ui.formatNumber(entry.expense) : ''}</td>
+                            <td class="text-right" style="color:#2196F3">${entry.income ? this.ui.formatNumber(entry.income) : ''}</td>
+                            <td class="text-right" style="color:#f44336">${entry.expense ? this.ui.formatNumber(entry.expense) : ''}</td>
                             <td class="text-right">${this.ui.formatNumber(runningBalance)}</td>
                             <td class="text-left">${entry.note || ''}</td>
                         </tr>
@@ -1661,8 +1661,8 @@
                         <tfoot>
                             <tr style="font-weight:bold; background:#f8f9fa;">
                                 <td colspan="3" style="text-align:right">합계</td>
-                                <td class="text-right">${this.ui.formatNumber(totals.income)}</td>
-                                <td class="text-right">${this.ui.formatNumber(totals.expense)}</td>
+                                <td class="text-right" style="color:#2196F3">${this.ui.formatNumber(totals.income)}</td>
+                                <td class="text-right" style="color:#f44336">${this.ui.formatNumber(totals.expense)}</td>
                                 <td class="text-right">${this.ui.formatNumber(totals.balance)}</td>
                                 <td></td>
                             </tr>
@@ -1672,11 +1672,11 @@
                     <div class="print-summary">
                         <div>
                             <span class="label">총 수입:</span>
-                            <span style="color:#000">${this.ui.formatNumber(totals.income)}원</span>
+                            <span style="color:#2196F3">${this.ui.formatNumber(totals.income)}원</span>
                         </div>
                         <div>
                             <span class="label">총 지출:</span>
-                            <span style="color:#000">${this.ui.formatNumber(totals.expense)}원</span>
+                            <span style="color:#f44336">${this.ui.formatNumber(totals.expense)}원</span>
                         </div>
                         <div>
                             <span class="label">잔액:</span>
@@ -2078,8 +2078,8 @@
                             <td style="border:1px solid #333; padding:6px 4px;">${number}</td>
                             <td style="border:1px solid #333; padding:6px 4px;">${entry.date}</td>
                             <td style="border:1px solid #333; padding:6px 4px; text-align:left">${entry.description}</td>
-                            <td style="border:1px solid #333; padding:6px 4px; text-align:right">${entry.income ? this.formatNumber(entry.income) : ''}</td>
-                            <td style="border:1px solid #333; padding:6px 4px; text-align:right">${entry.expense ? this.formatNumber(entry.expense) : ''}</td>
+                            <td style="border:1px solid #333; padding:6px 4px; text-align:right; color:#2196F3">${entry.income ? this.formatNumber(entry.income) : ''}</td>
+                            <td style="border:1px solid #333; padding:6px 4px; text-align:right; color:#f44336">${entry.expense ? this.formatNumber(entry.expense) : ''}</td>
                             <td style="border:1px solid #333; padding:6px 4px; text-align:right">${this.formatNumber(balance)}</td>
                             <td style="border:1px solid #333; padding:6px 4px; text-align:left">${entry.note || ''}</td>
                         </tr>`;
@@ -2223,8 +2223,8 @@
                     <tfoot>
                         <tr style="font-weight:bold; background:#f8f9fa;">
                             <td colspan="3" style="border:1px solid #333; padding:6px 4px; text-align:right">합계</td>
-                            <td style="border:1px solid #333; padding:6px 4px; text-align:right">${this.formatNumber(totals.income)}</td>
-                            <td style="border:1px solid #333; padding:6px 4px; text-align:right">${this.formatNumber(totals.expense)}</td>
+                            <td style="border:1px solid #333; padding:6px 4px; text-align:right; color:#2196F3">${this.formatNumber(totals.income)}</td>
+                            <td style="border:1px solid #333; padding:6px 4px; text-align:right; color:#f44336">${this.formatNumber(totals.expense)}</td>
                             <td style="border:1px solid #333; padding:6px 4px; text-align:right">${this.formatNumber(totals.balance)}</td>
                             <td style="border:1px solid #333; padding:6px 4px;"></td>
                         </tr>
@@ -2234,8 +2234,8 @@
                 const approvalHTML = isLastPage ? `
                     <div style="margin-top: 30px;">
                         <div style="display:flex; justify-content:flex-end; gap:20px; margin-bottom:20px; font-size:12px;">
-                            <div><span style="font-weight:600">총 수입:</span> <span style="color:#000">${this.formatNumber(totals.income)}원</span></div>
-                            <div><span style="font-weight:600">총 지출:</span> <span style="color:#000">${this.formatNumber(totals.expense)}원</span></div>
+                            <div><span style="font-weight:600">총 수입:</span> <span style="color:#2196F3">${this.formatNumber(totals.income)}원</span></div>
+                            <div><span style="font-weight:600">총 지출:</span> <span style="color:#f44336">${this.formatNumber(totals.expense)}원</span></div>
                             <div><span style="font-weight:600">잔액:</span> <span style="color:#000">${this.formatNumber(totals.balance)}원</span></div>
                         </div>
                         <table style="width:200px; margin-left:auto; border-collapse:collapse;">
@@ -2346,7 +2346,7 @@
         let currentReportData = null;
 
         // 앱 버전 (배포 시 sw.js의 CACHE_NAME과 함께 갱신할 것)
-        const APP_VERSION = 'v12';
+        const APP_VERSION = 'v13';
         
         // 앱 초기화
         async function initApp() {
