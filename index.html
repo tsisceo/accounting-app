@@ -1048,6 +1048,13 @@
                     </select>
                     <select id="reportPeriod">
                         <option value="">기간 선택</option>
+                        <option value="q1">1분기 (1-3월)</option>
+                        <option value="q2">2분기 (4-6월)</option>
+                        <option value="q3">3분기 (7-9월)</option>
+                        <option value="q4">4분기 (10-12월)</option>
+                        <option value="h1">상반기 (1-6월)</option>
+                        <option value="h2">하반기 (7-12월)</option>
+                        <option value="year">연간 (1-12월)</option>
                         <option value="1">1월</option>
                         <option value="2">2월</option>
                         <option value="3">3월</option>
@@ -1060,12 +1067,6 @@
                         <option value="10">10월</option>
                         <option value="11">11월</option>
                         <option value="12">12월</option>
-                        <option value="q1">1분기 (1-3월)</option>
-                        <option value="q2">2분기 (4-6월)</option>
-                        <option value="q3">3분기 (7-9월)</option>
-                        <option value="q4">4분기 (10-12월)</option>
-                        <option value="h1">상반기 (1-6월)</option>
-                        <option value="h2">하반기 (7-12월)</option>
                     </select>
                 </div>
                 <button class="btn btn-primary btn-block" onclick="generateReport()" style="margin-top: 12px;">
@@ -1507,7 +1508,8 @@
                     'q3': '3분기 (7-9월)',
                     'q4': '4분기 (10-12월)',
                     'h1': '상반기 (1-6월)',
-                    'h2': '하반기 (7-12월)'
+                    'h2': '하반기 (7-12월)',
+                    'year': '연간 (1-12월)'
                 };
                 
                 if (periodMap[period]) {
@@ -1534,6 +1536,8 @@
                     startMonth = 1; endMonth = 6;
                 } else if (period === 'h2') {
                     startMonth = 7; endMonth = 12;
+                } else if (period === 'year') {
+                    startMonth = 1; endMonth = 12;
                 } else {
                     const m = parseInt(period);
                     startMonth = m; endMonth = m;
