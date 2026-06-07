@@ -2,12 +2,12 @@
 // Service Worker - 오프라인 캐싱 및 PWA 지원
 // ============================================
 
-const CACHE_NAME = 'accounting-app-v11';
+const CACHE_NAME = 'accounting-app-v12';
 const urlsToCache = [
     './',
     './index.html',
     './manifest.json',
-    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+    'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js',
     'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
 ];
 

@@ -9,8 +9,8 @@
     <title>통친회 회계장부 관리</title>
     <link rel="manifest" href="manifest.json">
     
-    <!-- SheetJS for Excel export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- SheetJS (스타일 지원 포크) for Excel export with borders -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <!-- html2canvas for image export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
@@ -233,6 +233,31 @@
             margin-top: 12px;
             font-size: 0.85rem;
             color: #2e7d32;
+        }
+
+        /* 백업 알림 배너 */
+        .backup-alert {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: #fff3e0;
+            border-bottom: 2px solid #FF9800;
+            color: #e65100;
+            padding: 10px 16px;
+            font-size: 0.85rem;
+        }
+
+        .backup-alert button {
+            flex: 0 0 auto;
+            background: #FF9800;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
         }
         
         /* 컨테이너 */
@@ -534,6 +559,7 @@
         
         .print-area {
             background: white;
+            color: #000;  /* 출력물은 다크모드와 무관하게 항상 검정 글자 */
             padding: 40px;
             font-family: 'Noto Sans KR', sans-serif;
             /* A4 용지 비율 (210mm x 297mm) */
@@ -555,7 +581,7 @@
         
         .print-header .period {
             font-size: 14px;
-            color: #666;
+            color: #000;
         }
         
         .print-table {
@@ -818,6 +844,12 @@
             <span class="tab-label">설정</span>
         </button>
     </nav>
+
+    <!-- 백업 알림 배너 (백업이 오래/없을 때 표시) -->
+    <div class="backup-alert" id="backupAlert">
+        <span>⚠️ <span id="backupAlertText"></span></span>
+        <button type="button" onclick="goToBackup()">백업하기</button>
+    </div>
     
     <!-- 입력 탭 -->
     <div id="input" class="tab-content active">
@@ -881,23 +913,25 @@
                     
                     <div class="form-group">
                         <label for="description">내용</label>
-                        <input type="text" id="description" placeholder="내용을 입력하세요" required>
+                        <input type="text" id="description" list="descList" placeholder="내용을 입력하세요" required>
+                        <datalist id="descList"></datalist>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
                             <label for="income">수입</label>
-                            <input type="number" id="income" placeholder="0" min="0">
+                            <input type="text" id="income" inputmode="numeric" placeholder="0" oninput="formatNumberInput(this)">
                         </div>
                         <div class="form-group">
                             <label for="expense">지출</label>
-                            <input type="number" id="expense" placeholder="0" min="0">
+                            <input type="text" id="expense" inputmode="numeric" placeholder="0" oninput="formatNumberInput(this)">
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label for="note">비고</label>
-                        <input type="text" id="note" placeholder="비고 (선택사항)">
+                        <input type="text" id="note" list="noteList" placeholder="비고 (선택사항)">
+                        <datalist id="noteList"></datalist>
                     </div>
                     
                     <div class="btn-group">
@@ -914,7 +948,28 @@
             <!-- 최근 입력 목록 -->
             <div class="card">
                 <div class="card-title">
-                    <span>📋</span> 최근 입력 내역
+                    <span>📋</span> <span id="recentTitle">최근 입력 내역</span>
+                </div>
+                <div class="filter-section" style="margin-bottom: 12px;">
+                    <select id="recentYear" onchange="applyRecentFilter()">
+                        <option value="">연도</option>
+                    </select>
+                    <select id="recentMonth" onchange="applyRecentFilter()">
+                        <option value="">월</option>
+                        <option value="1">1월</option>
+                        <option value="2">2월</option>
+                        <option value="3">3월</option>
+                        <option value="4">4월</option>
+                        <option value="5">5월</option>
+                        <option value="6">6월</option>
+                        <option value="7">7월</option>
+                        <option value="8">8월</option>
+                        <option value="9">9월</option>
+                        <option value="10">10월</option>
+                        <option value="11">11월</option>
+                        <option value="12">12월</option>
+                    </select>
+                    <button type="button" class="btn btn-outline" onclick="clearRecentFilter()" title="필터 지우기" style="flex:0 0 auto; min-width:auto; padding:10px 16px;">✕</button>
                 </div>
                 <div class="data-grid">
                     <table class="data-table" id="recentTable">
@@ -979,8 +1034,12 @@
                     <button class="btn btn-outline" onclick="searchByPeriod('half')">반기별</button>
                     <button class="btn btn-primary" onclick="searchAll()">전체</button>
                 </div>
+                <div class="filter-section" style="margin-top: 12px;">
+                    <input type="text" id="searchKeyword" placeholder="🔍 내용·비고 검색" oninput="applyKeywordFilter()">
+                    <button class="btn btn-outline" onclick="clearKeyword()" title="검색어 지우기" style="flex:0 0 auto; min-width:auto; padding:10px 16px;">✕</button>
+                </div>
             </div>
-            
+
             <!-- 검색 결과 요약 -->
             <div class="summary-cards" id="searchSummary" style="display:none;">
                 <div class="summary-card income">
@@ -1139,7 +1198,7 @@
                     저장된 파일을 구글 드라이브에 업로드하여 백업하세요.
                 </p>
                 <button class="btn btn-primary btn-block" onclick="exportBackup()">
-                    📥 백업 파일 다운로드
+                    📥 데이터 백업
                 </button>
                 <div class="success-box" style="margin-top: 12px;">
                     💡 <strong>구글 드라이브 백업 방법:</strong><br>
@@ -1159,7 +1218,7 @@
                 </p>
                 <div class="file-input-wrapper">
                     <button class="btn btn-success btn-block">
-                        📂 백업 파일 선택
+                        📂 데이터 복원
                     </button>
                     <input type="file" id="restoreFile" accept=".json" onchange="handleRestoreFile(event)">
                 </div>
@@ -1572,18 +1631,18 @@
                 
                 // 빈 행인 경우
                 if (entries.length === 0) {
-                    rowsHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888;">데이터가 없습니다</td></tr>';
+                    rowsHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#000;">데이터가 없습니다</td></tr>';
                 }
                 
                 return `
                     <div class="print-header">
                         <h2>${title}</h2>
                         <div class="period">${periodStr}</div>
-                        <div style="font-size: 10px; color: #888; margin-top: 6px;">
+                        <div style="font-size: 14px; color: #000; margin-top: 6px;">
                             출력일: ${new Date().toLocaleDateString('ko-KR')}
                         </div>
                     </div>
-                    
+
                     <table class="print-table">
                         <thead>
                             <tr>
@@ -1613,15 +1672,15 @@
                     <div class="print-summary">
                         <div>
                             <span class="label">총 수입:</span>
-                            <span style="color:#2196F3">${this.ui.formatNumber(totals.income)}원</span>
+                            <span style="color:#000">${this.ui.formatNumber(totals.income)}원</span>
                         </div>
                         <div>
                             <span class="label">총 지출:</span>
-                            <span style="color:#f44336">${this.ui.formatNumber(totals.expense)}원</span>
+                            <span style="color:#000">${this.ui.formatNumber(totals.expense)}원</span>
                         </div>
                         <div>
                             <span class="label">잔액:</span>
-                            <span style="color:#4CAF50">${this.ui.formatNumber(totals.balance)}원</span>
+                            <span style="color:#000">${this.ui.formatNumber(totals.balance)}원</span>
                         </div>
                     </div>
                     
@@ -1659,108 +1718,115 @@
                 this.ROWS_PER_PAGE_OTHER = 40;  // 나머지 페이지
             }
             
-            // 엑셀 파일 생성 및 다운로드
+            // 엑셀 파일 생성 및 다운로드 (테두리·결재란 포함, 보고서 양식)
             export(title, periodStr, entries, totals) {
-                // 워크북 생성
                 const wb = XLSX.utils.book_new();
-                
-                // 페이지별로 데이터 분할
                 const pages = this.splitIntoPages(entries);
                 const totalPages = pages.length;
-                
-                // 전체 데이터 배열
+
                 const data = [];
-                const merges = [];      // 셀 병합 정보
-                const rowBreaks = [];   // 페이지 나누기 위치
-                
+                const merges = [];        // 셀 병합
+                const rowBreaks = [];     // 페이지 나누기
+                const cellStyles = [];    // {r, c, s} 셀별 스타일
+                const tallRows = [];      // 서명 공간으로 높이를 키울 행
+
+                // 스타일 조각
+                const thin = { style: 'thin', color: { rgb: '000000' } };
+                const box = { top: thin, bottom: thin, left: thin, right: thin };
+                const center = { horizontal: 'center', vertical: 'center', wrapText: true };
+                const left = { horizontal: 'left', vertical: 'center', wrapText: true };
+                const right = { horizontal: 'right', vertical: 'center' };
+                const headFill = { fgColor: { rgb: 'F0F0F0' } };
+
                 let currentRow = 0;
                 let runningBalance = 0;
                 let entryIndex = 0;
-                
+
                 pages.forEach((pageEntries, pageNum) => {
-                    const isFirstPage = (pageNum === 0);
                     const isLastPage = (pageNum === totalPages - 1);
-                    const pageStartRow = currentRow;
-                    
-                    // 페이지 번호 표시
                     const pageInfo = totalPages > 1 ? ` (${pageNum + 1}/${totalPages} 페이지)` : '';
-                    
-                    // === 헤더 섹션 ===
-                    // 제목 (병합)
+
+                    // === 제목 / 기간 / 출력일 (전체 병합, 가운데 정렬) ===
                     data.push([title + pageInfo, '', '', '', '', '', '']);
                     merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 6 } });
+                    cellStyles.push({ r: currentRow, c: 0, s: { font: { bold: true, sz: 16 }, alignment: center } });
                     currentRow++;
-                    
-                    // 기간
+
                     data.push([periodStr, '', '', '', '', '', '']);
                     merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 6 } });
+                    cellStyles.push({ r: currentRow, c: 0, s: { font: { sz: 12 }, alignment: center } });
                     currentRow++;
-                    
-                    // 출력일
+
                     data.push([`출력일: ${new Date().toLocaleDateString('ko-KR')}`, '', '', '', '', '', '']);
                     merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 6 } });
+                    cellStyles.push({ r: currentRow, c: 0, s: { font: { sz: 12 }, alignment: center } });
                     currentRow++;
-                    
+
                     // 빈 행
                     data.push(['', '', '', '', '', '', '']);
                     currentRow++;
-                    
-                    // 테이블 헤더
+
+                    // === 표 헤더 (테두리 + 회색 배경 + 굵게 + 가운데) ===
                     data.push(['번호', '날짜', '내용', '수입', '지출', '잔액', '비고']);
+                    for (let c = 0; c <= 6; c++) {
+                        cellStyles.push({ r: currentRow, c, s: { border: box, font: { bold: true }, alignment: center, fill: headFill } });
+                    }
                     currentRow++;
-                    
-                    // === 데이터 행 ===
+
+                    // === 데이터 행 (테두리 + 칸별 정렬) ===
+                    const aligns = [center, center, left, right, right, right, left];
                     pageEntries.forEach((entry) => {
                         runningBalance += (entry.income || 0) - (entry.expense || 0);
                         entryIndex++;
                         data.push([
-                            entryIndex,
-                            entry.date,
-                            entry.description,
-                            entry.income || '',
-                            entry.expense || '',
-                            runningBalance,
-                            entry.note || ''
+                            entryIndex, entry.date, entry.description,
+                            entry.income || '', entry.expense || '', runningBalance, entry.note || ''
                         ]);
+                        for (let c = 0; c <= 6; c++) {
+                            cellStyles.push({ r: currentRow, c, s: { border: box, alignment: aligns[c] } });
+                        }
                         currentRow++;
                     });
-                    
-                    // === 마지막 페이지: 합계 및 결재란 ===
+
+                    // === 마지막 페이지: 합계 + 요약 + 결재란 ===
                     if (isLastPage) {
+                        // 합계 행 (표에 이어서, 테두리 + 굵게)
+                        data.push(['합  계', '', '', totals.income, totals.expense, totals.balance, '']);
+                        merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 2 } });
+                        for (let c = 0; c <= 6; c++) {
+                            const a = (c >= 3 && c <= 5) ? right : center;
+                            cellStyles.push({ r: currentRow, c, s: { border: box, font: { bold: true }, alignment: a, fill: headFill } });
+                        }
+                        currentRow++;
+
                         // 빈 행
                         data.push(['', '', '', '', '', '', '']);
                         currentRow++;
-                        
-                        // 합계 행
-                        data.push(['', '', '합  계', totals.income, totals.expense, totals.balance, '']);
+
+                        // 요약 (오른쪽, 굵게)
+                        data.push(['', '', '', '', `총 수입: ${this.formatNumber(totals.income)}원`, `총 지출: ${this.formatNumber(totals.expense)}원`, `잔액: ${this.formatNumber(totals.balance)}원`]);
+                        for (let c = 4; c <= 6; c++) {
+                            cellStyles.push({ r: currentRow, c, s: { font: { bold: true }, alignment: right } });
+                        }
                         currentRow++;
-                        
-                        // 빈 행들
+
+                        // 빈 행
                         data.push(['', '', '', '', '', '', '']);
                         currentRow++;
-                        data.push(['', '', '', '', '', '', '']);
-                        currentRow++;
-                        
-                        // 요약 정보
-                        data.push(['', '', '', `총 수입: ${this.formatNumber(totals.income)}원`, '', `총 지출: ${this.formatNumber(totals.expense)}원`, `잔액: ${this.formatNumber(totals.balance)}원`]);
-                        currentRow++;
-                        
-                        // 빈 행들
-                        data.push(['', '', '', '', '', '', '']);
-                        currentRow++;
-                        data.push(['', '', '', '', '', '', '']);
-                        currentRow++;
-                        
-                        // 결재란 헤더
+
+                        // 결재란 헤더 (총무 / 회장 / 감사)
                         data.push(['', '', '', '', '총무', '회장', '감사']);
+                        for (let c = 4; c <= 6; c++) {
+                            cellStyles.push({ r: currentRow, c, s: { border: box, font: { bold: true }, alignment: center, fill: headFill } });
+                        }
                         currentRow++;
-                        
-                        // 결재란 서명 공간 (3행)
+
+                        // 결재란 서명 공간 (빈 박스, 행 높이 크게)
                         data.push(['', '', '', '', '', '', '']);
-                        currentRow++;
-                        data.push(['', '', '', '', '', '', '']);
-                        currentRow++;
-                        data.push(['', '', '', '', '', '', '']);
+                        for (let c = 4; c <= 6; c++) {
+                            cellStyles.push({ r: currentRow, c, s: { border: box } });
+                        }
+                        tallRows.push(currentRow);
                         currentRow++;
                     } else {
                         // 페이지 나누기 전 여백
@@ -1768,56 +1834,42 @@
                             data.push(['', '', '', '', '', '', '']);
                             currentRow++;
                         }
-                        
-                        // 페이지 나누기 위치 기록
                         rowBreaks.push(currentRow);
                     }
                 });
-                
+
                 // 워크시트 생성
                 const ws = XLSX.utils.aoa_to_sheet(data);
-                
-                // 셀 병합 적용
                 ws['!merges'] = merges;
-                
-                // 열 너비 설정
+
+                // 열 너비
                 ws['!cols'] = [
-                    { wch: 6 },   // 번호
-                    { wch: 12 },  // 날짜
-                    { wch: 28 },  // 내용
-                    { wch: 12 },  // 수입
-                    { wch: 12 },  // 지출
-                    { wch: 12 },  // 잔액
-                    { wch: 14 }   // 비고
+                    { wch: 6 }, { wch: 12 }, { wch: 28 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 14 }
                 ];
-                
-                // 행 높이 설정 (A4 맞춤)
+
+                // 행 높이 (기본 + 서명행 크게)
                 ws['!rows'] = [];
-                for (let i = 0; i < data.length; i++) {
-                    ws['!rows'][i] = { hpt: 18 };  // 기본 행 높이
-                }
-                
-                // 페이지 나누기 설정
-                if (rowBreaks.length > 0) {
-                    ws['!rowBreaks'] = rowBreaks.map(r => ({ row: r }));
-                }
-                
-                // 인쇄 설정
+                for (let i = 0; i < data.length; i++) ws['!rows'][i] = { hpt: 22 };
+                tallRows.forEach(r => { ws['!rows'][r] = { hpt: 60 }; });
+
+                // 셀 스타일 적용 (빈 셀도 테두리를 위해 생성)
+                cellStyles.forEach(({ r, c, s }) => {
+                    const ref = XLSX.utils.encode_cell({ r, c });
+                    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+                    ws[ref].s = s;
+                });
+
+                // 페이지 나누기 + 인쇄 설정
+                if (rowBreaks.length > 0) ws['!rowBreaks'] = rowBreaks.map(r => ({ row: r }));
                 ws['!pageSetup'] = {
-                    paperSize: 9,           // A4
-                    orientation: 'portrait', // 세로
-                    fitToPage: true,
-                    fitToWidth: 1,
-                    fitToHeight: 0
+                    paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0
                 };
-                
-                // 워크시트 추가
+
+                // 워크시트 추가 및 다운로드
                 XLSX.utils.book_append_sheet(wb, ws, '회계장부');
-                
-                // 파일 다운로드
                 const fileName = `${title}_${periodStr.replace(/[^0-9가-힣]/g, '_')}.xlsx`;
                 XLSX.writeFile(wb, fileName);
-                
+
                 if (totalPages > 1) {
                     this.ui.showToast(`엑셀 파일이 저장되었습니다 (${totalPages}페이지)`);
                 } else {
@@ -1877,37 +1929,39 @@
                 try {
                     const totalEntries = entries.length;
                     
-                    // 페이지별로 데이터 분할
-                    const pages = this.splitIntoPages(entries);
+                    // 페이지별로 데이터 분할 (실제 렌더 높이를 측정해 균일하게 채움)
+                    const pages = this.paginateByHeight(entries, title, periodStr, totals);
                     const totalPages = pages.length;
-                    
+
                     this.lastImageBlobs = [];
                     this.lastFileNames = [];
 
-                    // 페이지를 가로지르며 누적되는 잔액 (2페이지 이후의 시작 잔액 계산용)
+                    // 페이지를 가로지르며 누적되는 잔액·행번호 (2페이지 이후 시작값 계산용)
                     let runningBalance = 0;
+                    let runningCount = 0;
 
                     // 각 페이지별 이미지 생성
                     for (let pageNum = 0; pageNum < totalPages; pageNum++) {
                         const isFirstPage = (pageNum === 0);
                         const isLastPage = (pageNum === totalPages - 1);
 
-                        // 페이지 HTML 생성 (이전 페이지까지의 누적 잔액을 시작 잔액으로 전달)
+                        // 페이지 HTML 생성 (이전 페이지까지의 누적 잔액·행번호를 시작값으로 전달)
                         const pageHTML = this.generatePageHTML(
                             pages[pageNum],
                             title,
                             periodStr,
-                            { ...totals, previousBalance: runningBalance },
+                            { ...totals, previousBalance: runningBalance, startNumber: runningCount },
                             pageNum + 1,
                             totalPages,
                             isFirstPage,
                             isLastPage
                         );
 
-                        // 이 페이지의 수입/지출 변동분을 누적하여 다음 페이지의 시작 잔액으로 사용
+                        // 이 페이지의 수입/지출 변동분과 행 수를 누적
                         pages[pageNum].forEach(entry => {
                             runningBalance += (entry.income || 0) - (entry.expense || 0);
                         });
+                        runningCount += pages[pageNum].length;
                         
                         // 임시 요소 생성
                         const tempDiv = document.createElement('div');
@@ -1915,11 +1969,14 @@
                         tempDiv.style.position = 'absolute';
                         tempDiv.style.left = '-9999px';
                         tempDiv.style.width = '595px';
-                        tempDiv.style.minHeight = '842px';
+                        tempDiv.style.height = '842px';      /* A4 고정 높이 (flex로 표를 늘려 꽉 채움) */
                         tempDiv.style.background = 'white';
+                        tempDiv.style.color = '#000';  /* 다크모드에서도 이미지 글자는 검정 */
                         tempDiv.style.padding = '40px';
                         tempDiv.style.boxSizing = 'border-box';
                         tempDiv.style.fontFamily = "'Noto Sans KR', sans-serif";
+                        tempDiv.style.display = 'flex';
+                        tempDiv.style.flexDirection = 'column';
                         document.body.appendChild(tempDiv);
                         
                         // 캔버스 생성
@@ -2013,32 +2070,149 @@
                 
                 return pages;
             }
-            
+
+            // 데이터 행 HTML 생성 (generatePageHTML과 높이 측정에서 공용)
+            renderRow(number, entry, balance) {
+                return `
+                        <tr>
+                            <td style="border:1px solid #333; padding:6px 4px;">${number}</td>
+                            <td style="border:1px solid #333; padding:6px 4px;">${entry.date}</td>
+                            <td style="border:1px solid #333; padding:6px 4px; text-align:left">${entry.description}</td>
+                            <td style="border:1px solid #333; padding:6px 4px; text-align:right">${entry.income ? this.formatNumber(entry.income) : ''}</td>
+                            <td style="border:1px solid #333; padding:6px 4px; text-align:right">${entry.expense ? this.formatNumber(entry.expense) : ''}</td>
+                            <td style="border:1px solid #333; padding:6px 4px; text-align:right">${this.formatNumber(balance)}</td>
+                            <td style="border:1px solid #333; padding:6px 4px; text-align:left">${entry.note || ''}</td>
+                        </tr>`;
+            }
+
+            // 실제 렌더 높이를 측정해 A4 한 페이지에 맞게 행을 분할 (모든 페이지를 균일하게 채움)
+            paginateByHeight(entries, title, periodStr, totals) {
+                if (entries.length === 0) return [[]];
+
+                // tempDiv 콘텐츠 가용 높이 (minHeight 842 - 상하 padding 80)
+                const CONTENT_H = 762;
+
+                // 측정용 임시 컨테이너 (실제 출력과 동일한 폭/폰트/패딩)
+                const probe = document.createElement('div');
+                probe.style.cssText = "position:absolute; left:-9999px; top:0; width:595px; padding:40px; box-sizing:border-box; background:#fff; color:#000; font-family:'Noto Sans KR', sans-serif;";
+                document.body.appendChild(probe);
+
+                // 제목 영역 높이
+                probe.innerHTML = `
+                    <div style="text-align:center; margin-bottom:20px;">
+                        <h2 style="font-size:18px; margin-bottom:6px;">${title}</h2>
+                        <div style="font-size:14px; color:#666;">${periodStr} (1/9 페이지)</div>
+                        <div style="font-size:14px; color:#888; margin-top:6px;">출력일: ${new Date().toLocaleDateString('ko-KR')}</div>
+                    </div>`;
+                const headerH = probe.offsetHeight;
+
+                // 표 헤더(thead) — 측정과 실제 출력이 같은 칸 너비를 쓰도록 공용 변수로
+                const theadHTML = `<thead><tr>
+                    <th style="border:1px solid #333; padding:6px 4px; width:30px;">번호</th>
+                    <th style="border:1px solid #333; padding:6px 4px; width:70px;">날짜</th>
+                    <th style="border:1px solid #333; padding:6px 4px;">내용</th>
+                    <th style="border:1px solid #333; padding:6px 4px; width:65px;">수입</th>
+                    <th style="border:1px solid #333; padding:6px 4px; width:65px;">지출</th>
+                    <th style="border:1px solid #333; padding:6px 4px; width:65px;">잔액</th>
+                    <th style="border:1px solid #333; padding:6px 4px; width:70px;">비고</th>
+                </tr></thead>`;
+                probe.innerHTML = `<table style="width:100%; border-collapse:collapse; font-size:11px;">${theadHTML}</table>`;
+                const theadH = probe.offsetHeight;
+
+                // 합계행 + 결재란 높이 (마지막 페이지에 필요한 공간)
+                probe.innerHTML = `<table style="width:100%; border-collapse:collapse; font-size:11px;"><tbody></tbody>
+                    <tfoot><tr style="font-weight:bold; background:#f8f9fa;">
+                        <td colspan="3" style="border:1px solid #333; padding:6px 4px; text-align:right">합계</td>
+                        <td style="border:1px solid #333; padding:6px 4px; text-align:right">${this.formatNumber(totals.income)}</td>
+                        <td style="border:1px solid #333; padding:6px 4px; text-align:right">${this.formatNumber(totals.expense)}</td>
+                        <td style="border:1px solid #333; padding:6px 4px; text-align:right">${this.formatNumber(totals.balance)}</td>
+                        <td style="border:1px solid #333; padding:6px 4px;"></td>
+                    </tr></tfoot></table>
+                    <div style="margin-top:30px;">
+                        <div style="display:flex; justify-content:flex-end; gap:20px; margin-bottom:20px; font-size:12px;">
+                            <div>총 수입: ${this.formatNumber(totals.income)}원</div>
+                            <div>총 지출: ${this.formatNumber(totals.expense)}원</div>
+                            <div>잔액: ${this.formatNumber(totals.balance)}원</div>
+                        </div>
+                        <table style="width:200px; margin-left:auto; border-collapse:collapse;">
+                            <thead><tr>
+                                <th style="border:1px solid #333; padding:6px 12px; font-size:11px;">총무</th>
+                                <th style="border:1px solid #333; padding:6px 12px; font-size:11px;">회장</th>
+                                <th style="border:1px solid #333; padding:6px 12px; font-size:11px;">감사</th>
+                            </tr></thead>
+                            <tbody><tr>
+                                <td style="border:1px solid #333; height:50px;"></td>
+                                <td style="border:1px solid #333; height:50px;"></td>
+                                <td style="border:1px solid #333; height:50px;"></td>
+                            </tr></tbody>
+                        </table>
+                    </div>`;
+                const footerH = probe.offsetHeight + 12;  // 약간의 여유
+
+                // 각 데이터 행의 실제 높이 측정 (thead 포함 → 실제 출력과 칸 너비 동일)
+                let allRows = '';
+                entries.forEach((e, i) => { allRows += this.renderRow(i + 1, e, 0); });
+                probe.innerHTML = `<table style="width:100%; border-collapse:collapse; font-size:11px;">${theadHTML}<tbody>${allRows}</tbody></table>`;
+                const rowEls = probe.querySelectorAll('tbody tr');
+                const rowH = [...rowEls].map(tr => tr.offsetHeight);
+
+                document.body.removeChild(probe);
+
+                // 일반 페이지 / 마지막 페이지(합계·결재란 포함)의 행 영역 가용 높이
+                const availNormal = CONTENT_H - headerH - theadH;
+                const availLast = Math.max(availNormal - footerH, footerH); // 음수 방지
+
+                // 주어진 페이지 높이 한도(limit)로 행을 분할 (마지막 페이지엔 합계·결재란 공간 확보)
+                const paginate = (limit) => {
+                    const res = [];
+                    let s = 0;
+                    while (s < entries.length) {
+                        let h = 0, e = s;
+                        while (e < entries.length && (e === s || h + rowH[e] <= limit)) {
+                            h += rowH[e];
+                            e++;
+                        }
+                        res.push([s, e]);
+                        s = e;
+                    }
+                    // 마지막 페이지에 합계·결재란이 안 들어가면 끝 행들을 새 페이지로 이동
+                    let [ls, le] = res[res.length - 1];
+                    let lh = 0;
+                    for (let i = ls; i < le; i++) lh += rowH[i];
+                    if (lh > availLast && (le - ls) > 1) {
+                        let bh = 0, sp = le;
+                        for (let i = le - 1; i > ls; i--) {
+                            if (bh + rowH[i] > availLast) break;
+                            bh += rowH[i];
+                            sp = i;
+                        }
+                        res[res.length - 1] = [ls, sp];
+                        res.push([sp, le]);
+                    }
+                    return res;
+                };
+
+                // 각 페이지를 위에서부터 A4 높이까지 최대한 채움 (마지막 페이지는 남은 행 + 합계·결재란)
+                const idx = paginate(availNormal);
+
+                return idx.map(([a, b]) => entries.slice(a, b));
+            }
+
             // 페이지별 HTML 생성
             generatePageHTML(entries, title, periodStr, totals, pageNum, totalPages, isFirstPage, isLastPage) {
                 // 이전 페이지까지의 누적 잔액을 시작 잔액으로 사용 (1페이지 또는 미전달 시 0)
                 let runningBalance = totals.previousBalance ?? 0;
 
                 let rowsHTML = '';
-                const startIndex = isFirstPage ? 0 : (this.ROWS_PER_PAGE_FIRST + (pageNum - 2) * this.ROWS_PER_PAGE_OTHER);
-                
+                const startNumber = totals.startNumber ?? 0;  // 이전 페이지까지의 누적 행 수
+
                 entries.forEach((entry, index) => {
                     runningBalance += (entry.income || 0) - (entry.expense || 0);
-                    rowsHTML += `
-                        <tr>
-                            <td>${startIndex + index + 1}</td>
-                            <td>${entry.date}</td>
-                            <td style="text-align:left">${entry.description}</td>
-                            <td style="text-align:right">${entry.income ? this.formatNumber(entry.income) : ''}</td>
-                            <td style="text-align:right">${entry.expense ? this.formatNumber(entry.expense) : ''}</td>
-                            <td style="text-align:right">${this.formatNumber(runningBalance)}</td>
-                            <td style="text-align:left">${entry.note || ''}</td>
-                        </tr>
-                    `;
+                    rowsHTML += this.renderRow(startNumber + index + 1, entry, runningBalance);
                 });
                 
                 if (entries.length === 0) {
-                    rowsHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;">데이터가 없습니다</td></tr>';
+                    rowsHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#000;">데이터가 없습니다</td></tr>';
                 }
                 
                 // 페이지 번호 표시
@@ -2048,11 +2222,11 @@
                 const summaryHTML = isLastPage ? `
                     <tfoot>
                         <tr style="font-weight:bold; background:#f8f9fa;">
-                            <td colspan="3" style="text-align:right">합계</td>
-                            <td style="text-align:right">${this.formatNumber(totals.income)}</td>
-                            <td style="text-align:right">${this.formatNumber(totals.expense)}</td>
-                            <td style="text-align:right">${this.formatNumber(totals.balance)}</td>
-                            <td></td>
+                            <td colspan="3" style="border:1px solid #333; padding:6px 4px; text-align:right">합계</td>
+                            <td style="border:1px solid #333; padding:6px 4px; text-align:right">${this.formatNumber(totals.income)}</td>
+                            <td style="border:1px solid #333; padding:6px 4px; text-align:right">${this.formatNumber(totals.expense)}</td>
+                            <td style="border:1px solid #333; padding:6px 4px; text-align:right">${this.formatNumber(totals.balance)}</td>
+                            <td style="border:1px solid #333; padding:6px 4px;"></td>
                         </tr>
                     </tfoot>
                 ` : '';
@@ -2060,9 +2234,9 @@
                 const approvalHTML = isLastPage ? `
                     <div style="margin-top: 30px;">
                         <div style="display:flex; justify-content:flex-end; gap:20px; margin-bottom:20px; font-size:12px;">
-                            <div><span style="font-weight:600">총 수입:</span> <span style="color:#2196F3">${this.formatNumber(totals.income)}원</span></div>
-                            <div><span style="font-weight:600">총 지출:</span> <span style="color:#f44336">${this.formatNumber(totals.expense)}원</span></div>
-                            <div><span style="font-weight:600">잔액:</span> <span style="color:#4CAF50">${this.formatNumber(totals.balance)}원</span></div>
+                            <div><span style="font-weight:600">총 수입:</span> <span style="color:#000">${this.formatNumber(totals.income)}원</span></div>
+                            <div><span style="font-weight:600">총 지출:</span> <span style="color:#000">${this.formatNumber(totals.expense)}원</span></div>
+                            <div><span style="font-weight:600">잔액:</span> <span style="color:#000">${this.formatNumber(totals.balance)}원</span></div>
                         </div>
                         <table style="width:200px; margin-left:auto; border-collapse:collapse;">
                             <thead>
@@ -2084,15 +2258,15 @@
                 ` : '';
                 
                 return `
-                    <div style="text-align:center; margin-bottom:20px;">
+                    <div style="text-align:center; margin-bottom:20px; flex:0 0 auto;">
                         <h2 style="font-size:18px; margin-bottom:6px;">${title}</h2>
-                        <div style="font-size:14px; color:#666;">${periodStr} ${pageInfo}</div>
-                        <div style="font-size:10px; color:#888; margin-top:6px;">
+                        <div style="font-size:14px; color:#000;">${periodStr} ${pageInfo}</div>
+                        <div style="font-size:14px; color:#000; margin-top:6px;">
                             출력일: ${new Date().toLocaleDateString('ko-KR')}
                         </div>
                     </div>
-                    
-                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+
+                    <table style="width:100%; border-collapse:collapse; font-size:11px; flex:1 1 auto;">
                         <thead>
                             <tr>
                                 <th style="border:1px solid #333; padding:6px 4px; background:#f0f0f0; width:30px;">번호</th>
@@ -2172,7 +2346,7 @@
         let currentReportData = null;
 
         // 앱 버전 (배포 시 sw.js의 CACHE_NAME과 함께 갱신할 것)
-        const APP_VERSION = 'v11';
+        const APP_VERSION = 'v12';
         
         // 앱 초기화
         async function initApp() {
@@ -2206,7 +2380,10 @@
             
             // 설정 탭 데이터 현황 업데이트
             await updateDataStats();
-            
+
+            // 백업 알림 배너 체크
+            await checkBackupReminder();
+
             // 이벤트 리스너 설정
             setupEventListeners();
             
@@ -2245,8 +2422,14 @@
             
             document.getElementById('filterYear').innerHTML = '<option value="">연도 선택</option>' + yearHTML;
             document.getElementById('reportYear').innerHTML = '<option value="">연도</option>' + yearHTML;
-            
-            // 현재 연도 기본 선택
+
+            // 최근 내역 필터 연도 (현재 선택값 유지)
+            const recentYearSel = document.getElementById('recentYear');
+            const prevRecentYear = recentYearSel.value;
+            recentYearSel.innerHTML = '<option value="">연도</option>' + yearHTML;
+            recentYearSel.value = prevRecentYear;
+
+            // 현재 연도 기본 선택 (recentYear는 빈값 유지 → 기본은 최근 10개)
             document.getElementById('filterYear').value = String(currentYear);
             document.getElementById('reportYear').value = String(currentYear);
         }
@@ -2361,19 +2544,25 @@
             document.getElementById('totalExpense').textContent = ui.formatNumber(totalExpense);
             document.getElementById('totalBalance').textContent = ui.formatNumber(totalIncome - totalExpense);
             
-            // 최근 10개 항목 표시
-            displayRecentEntries(entries.slice(0, 10));
+            // 최근 내역 (필터 상태에 따라 최근 10개 또는 선택한 년/월)
+            applyRecentFilter(entries);
+
+            // 백업 알림 배너 갱신
+            checkBackupReminder(entries);
+
+            // 내용·비고 자동완성 목록 갱신
+            updateAutocomplete(entries);
         }
         
         // 최근 항목 표시
-        function displayRecentEntries(entries) {
+        function displayRecentEntries(entries, emptyMsg) {
             const tbody = document.getElementById('recentTableBody');
-            
+
             if (entries.length === 0) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="6" style="text-align:center;padding:30px;color:#888;">
-                            등록된 데이터가 없습니다
+                            ${emptyMsg || '등록된 데이터가 없습니다'}
                         </td>
                     </tr>
                 `;
@@ -2394,7 +2583,57 @@
                 </tr>
             `).join('');
         }
-        
+
+        // 최근 내역 필터 적용 (년/월 선택 시 해당 기간, 둘 다 비우면 최근 10개)
+        async function applyRecentFilter(preloaded) {
+            const year = document.getElementById('recentYear').value;
+            const month = document.getElementById('recentMonth').value;
+            const titleEl = document.getElementById('recentTitle');
+            const entries = preloaded || await db.getAllEntries();
+
+            // 년/월 모두 비었으면 기존처럼 최근 10개
+            if (!year && !month) {
+                titleEl.textContent = '최근 입력 내역';
+                displayRecentEntries(entries.slice(0, 10));
+                return;
+            }
+
+            // 선택한 년/월로 필터 (날짜 내림차순 정렬은 getAllEntries에서 이미 적용됨)
+            let filtered = entries;
+            if (year) filtered = filtered.filter(e => e.date.substring(0, 4) === year);
+            if (month) filtered = filtered.filter(e => parseInt(e.date.substring(5, 7), 10) === parseInt(month, 10));
+
+            // 제목 갱신
+            let label = '';
+            if (year) label += `${year}년 `;
+            if (month) label += `${month}월 `;
+            titleEl.textContent = `${label}내역 (${filtered.length}건)`;
+
+            displayRecentEntries(filtered, '해당 기간 내역이 없습니다');
+        }
+
+        // 최근 내역 필터 지우기 (X 버튼) → 다시 최근 10개 표시
+        function clearRecentFilter() {
+            document.getElementById('recentYear').value = '';
+            document.getElementById('recentMonth').value = '';
+            applyRecentFilter();
+        }
+
+        // 내용·비고 입력 자동완성 목록 갱신 (이전 입력값 기반)
+        async function updateAutocomplete(preloaded) {
+            const entries = preloaded || await db.getAllEntries();
+            const uniq = arr => [...new Set(arr.filter(Boolean))];
+            const esc = s => String(s).replace(/"/g, '&quot;');
+            document.getElementById('descList').innerHTML = uniq(entries.map(e => e.description)).map(d => `<option value="${esc(d)}">`).join('');
+            document.getElementById('noteList').innerHTML = uniq(entries.map(e => e.note)).map(n => `<option value="${esc(n)}">`).join('');
+        }
+
+        // 금액 입력란 천단위 콤마 자동 포맷
+        function formatNumberInput(el) {
+            const digits = el.value.replace(/[^0-9]/g, '');
+            el.value = digits ? new Intl.NumberFormat('ko-KR').format(parseInt(digits, 10)) : '';
+        }
+
         // 폼 제출 처리
         async function handleFormSubmit(e) {
             e.preventDefault();
@@ -2403,8 +2642,8 @@
             const entry = {
                 date: getSelectedDate(),
                 description: document.getElementById('description').value,
-                income: parseInt(document.getElementById('income').value) || 0,
-                expense: parseInt(document.getElementById('expense').value) || 0,
+                income: parseInt(document.getElementById('income').value.replace(/[^0-9]/g, '')) || 0,
+                expense: parseInt(document.getElementById('expense').value.replace(/[^0-9]/g, '')) || 0,
                 note: document.getElementById('note').value
             };
             
@@ -2463,8 +2702,8 @@
             document.getElementById('editId').value = entry.id;
             setDateDropdowns(entry.date);
             document.getElementById('description').value = entry.description;
-            document.getElementById('income').value = entry.income || '';
-            document.getElementById('expense').value = entry.expense || '';
+            document.getElementById('income').value = entry.income ? ui.formatNumber(entry.income) : '';
+            document.getElementById('expense').value = entry.expense ? ui.formatNumber(entry.expense) : '';
             document.getElementById('note').value = entry.note || '';
             
             document.getElementById('submitBtnText').textContent = '수정';
@@ -2570,7 +2809,7 @@
             if (!year) {
                 // 전체 데이터
                 const entries = await db.getAllEntries();
-                displaySearchResults(entries, '(전체)');
+                setSearchResults(entries, '(전체)');
             } else {
                 // 해당 연도 전체
                 const startDate = `${year}-01-01`;
@@ -2579,10 +2818,50 @@
             }
         }
         
+        // === 목록 탭 키워드 검색 ===
+        let rawSearchEntries = [];   // 기간 검색 결과 원본 (키워드 필터의 기준)
+        let lastSearchLabel = '';
+        let searchPerformed = false;
+
+        // 기간 검색 결과를 설정하고 키워드 필터까지 적용
+        function setSearchResults(entries, label) {
+            rawSearchEntries = entries;
+            lastSearchLabel = label;
+            searchPerformed = true;
+            applyKeywordFilter();
+        }
+
+        // 키워드(내용·비고)로 결과 좁히기
+        async function applyKeywordFilter() {
+            const kw = document.getElementById('searchKeyword').value.trim().toLowerCase();
+            // 기간 검색을 한 적 없으면 전체를 대상으로 (키워드 단독 검색 지원)
+            if (!searchPerformed) {
+                rawSearchEntries = await db.getAllEntries();
+                lastSearchLabel = '(전체)';
+                searchPerformed = true;
+            }
+            let filtered = rawSearchEntries;
+            let label = lastSearchLabel;
+            if (kw) {
+                filtered = rawSearchEntries.filter(e =>
+                    (e.description || '').toLowerCase().includes(kw) ||
+                    (e.note || '').toLowerCase().includes(kw)
+                );
+                label = `${lastSearchLabel} · 검색: "${kw}"`;
+            }
+            displaySearchResults(filtered, label);
+        }
+
+        // 키워드 지우기 (X 버튼)
+        function clearKeyword() {
+            document.getElementById('searchKeyword').value = '';
+            applyKeywordFilter();
+        }
+
         // 검색 수행
         async function performSearch(startDate, endDate, periodLabel) {
             const entries = await db.getEntriesByPeriod(startDate, endDate);
-            displaySearchResults(entries, periodLabel);
+            setSearchResults(entries, periodLabel);
         }
         
         // 검색 결과 표시
@@ -2748,9 +3027,11 @@
             document.getElementById('statsTotalIncome').textContent = `${ui.formatNumber(totalIncome)}원`;
             document.getElementById('statsTotalExpense').textContent = `${ui.formatNumber(totalExpense)}원`;
             
-            // 마지막 백업 시간 (localStorage에 저장)
+            // 마지막 백업 시간 + 경과일
             const lastBackup = localStorage.getItem('lastBackupTime');
-            document.getElementById('statsLastBackup').textContent = lastBackup || '없음';
+            const days = getBackupDaysAgo();
+            document.getElementById('statsLastBackup').textContent =
+                lastBackup ? (days >= 1 ? `${lastBackup} (${days}일 전)` : lastBackup) : '없음';
         }
         
         // 백업 파일 내보내기
@@ -2783,8 +3064,10 @@
                 // 마지막 백업 시간 저장
                 const now = new Date().toLocaleString('ko-KR');
                 localStorage.setItem('lastBackupTime', now);
+                localStorage.setItem('lastBackupTimeISO', new Date().toISOString());
                 document.getElementById('statsLastBackup').textContent = now;
-                
+                checkBackupReminder();  // 백업 완료 → 알림 배너 숨김
+
                 ui.showToast(`${entries.length}건의 데이터가 백업되었습니다`);
                 
             } catch (error) {
@@ -2792,7 +3075,40 @@
                 ui.showToast('백업에 실패했습니다');
             }
         }
-        
+
+        // 마지막 백업 후 경과일 (백업 이력 없으면 null)
+        function getBackupDaysAgo() {
+            const iso = localStorage.getItem('lastBackupTimeISO');
+            if (!iso) return null;
+            return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+        }
+
+        // 백업 알림 배너 갱신 (거래가 있는데 백업이 없거나 7일 이상 지났으면 표시)
+        async function checkBackupReminder(preloaded) {
+            const alertEl = document.getElementById('backupAlert');
+            const entries = preloaded || await db.getAllEntries();
+            if (entries.length === 0) { alertEl.style.display = 'none'; return; }
+
+            const days = getBackupDaysAgo();
+            const THRESHOLD = 7;  // 7일 이상이면 알림
+            if (days === null) {
+                document.getElementById('backupAlertText').textContent = '아직 백업한 적이 없습니다. 데이터 보호를 위해 백업을 권장합니다.';
+                alertEl.style.display = 'flex';
+            } else if (days >= THRESHOLD) {
+                document.getElementById('backupAlertText').textContent = `마지막 백업 후 ${days}일 지났습니다. 백업을 권장합니다.`;
+                alertEl.style.display = 'flex';
+            } else {
+                alertEl.style.display = 'none';
+            }
+        }
+
+        // 백업 화면(설정 탭)으로 이동
+        function goToBackup() {
+            ui.switchTab('settings');
+            updateDataStats();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
         // 복원 파일 선택 처리
         function handleRestoreFile(event) {
             const file = event.target.files[0];
